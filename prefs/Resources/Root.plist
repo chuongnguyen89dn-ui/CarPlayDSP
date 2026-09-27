@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0"><array>
+<dict><key>cell</key><string>PSGroupCell</string><key>label</key><string>CarPlayDSP</string><key>footerText</key><string>Rootless iOS 16 CarPlay DSP. Current build is the audio-hook proof of concept; measurement and Auto Tune will be added here.</string></dict>
+<dict><key>cell</key><string>PSSwitchCell</string><key>label</key><string>Enable DSP</string><key>defaults</key><string>com.anhchuong.carplaydsp</string><key>key</key><string>enabled</string><key>default</key><true/><key>PostNotification</key><string>com.anhchuong.carplaydsp/preferences.changed</string></dict>
+<dict><key>cell</key><string>PSGroupCell</string><key>label</key><string>POC Test Filter</string></dict>
+<dict><key>cell</key><string>PSTitleValueCell</string><key>label</key><string>Frequency</string><key>default</key><string>1000 Hz</string></dict>
+<dict><key>cell</key><string>PSTitleValueCell</string><key>label</key><string>Gain</string><key>default</key><string>-15 dB</string></dict>
+<dict><key>cell</key><string>PSTitleValueCell</string><key>label</key><string>Q</string><key>default</key><string>1.0</string></dict>
+<dict><key>cell</key><string>PSButtonCell</string><key>label</key><string>DSP Status / Apply</string><key>action</key><string>respringAudio</string></dict>
+<dict><key>cell</key><string>PSGroupCell</string><key>footerText</key><string>CarPlayDSP • POC. Connect CarPlay and play music to verify the test EQ before Auto Tune development.</string></dict>
+</array></plist>
