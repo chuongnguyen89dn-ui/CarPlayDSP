@@ -11,7 +11,10 @@ CarPlayDSP_CCFLAGS = -std=c++17
 CarPlayDSP_FRAMEWORKS = AVFAudio AudioToolbox Foundation
 CarPlayDSP_LIBRARIES = substrate
 
+SUBPROJECTS += prefs
+
 include $(THEOS_MAKE_PATH)/tweak.mk
+include $(THEOS_MAKE_PATH)/aggregate.mk
 
 after-install::
-	install.exec "killall mediaserverd 2>/dev/null || true"
+	install.exec "killall mediaserverd 2>/dev/null || true; killall -9 Preferences 2>/dev/null || true"
