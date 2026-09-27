@@ -44,7 +44,7 @@ jobs:
           brew install dpkg || true
           rm -rf /tmp/duo /tmp/aira /tmp/combined
           curl -fL "https://raw.githubusercontent.com/chuongnguyen89dn-ui/DauDat-CarPlay/main/DuoDash_1.1.3_Fullscreen427_iphoneos-arm64.deb" -o /tmp/duo.deb
-          curl -fL "https://raw.githubusercontent.com/chuongnguyen89dn-ui/DauDat-CarPlay/main/com.axs.airaw_1.6.7_iphoneos-arm64.deb" -o /tmp/aira.deb
+          curl -fL "https://raw.githubusercontent.com/chuongnguyen89dn-ui/DauDat-CarPlay/main/com.Axs.airaw_1.6.7_iphoneos-arm64.deb" -o /tmp/aira.deb
           dpkg-deb -R /tmp/duo.deb /tmp/duo
           dpkg-deb -R /tmp/aira.deb /tmp/aira
           mkdir -p /tmp/combined/DEBIAN
