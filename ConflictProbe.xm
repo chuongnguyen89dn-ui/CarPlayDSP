@@ -6,9 +6,11 @@
 #import <stdio.h>
 #import <string.h>
 #import <time.h>
+#import <signal.h>
 
 static int gFD=-1;
 static unsigned long long gSeq=0;
+static volatile sig_atomic_t gTerminating=0;
 static const char *gPath=NULL;
 static const char *paths[]={
   "/var/mobile/DuoDash-Airaw-Conflict.log",
@@ -49,9 +51,19 @@ static void imageAdded(const struct mach_header *mh, intptr_t slide){
     }
   }
 }
+static void terminationSignal(int sig){
+  if(!gTerminating){ gTerminating=1; logLine("PROCESS_SIGNAL signal=%d",sig); }
+  signal(sig,SIG_DFL); raise(sig);
+}
+
+__attribute__((destructor))
+static void ConflictProbeFini(void){ logLine("PROCESS_UNLOAD normal=1"); if(gFD>=0) fsync(gFD); }
+
 __attribute__((constructor))
 static void ConflictProbeInit(void){
   openLog();
+  signal(SIGTERM,terminationSignal);
+  signal(SIGABRT,terminationSignal);
   logLine("SESSION_START logger=%s",gPath?gPath:"unavailable");
   uint32_t n=_dyld_image_count();
   bool duo=false,full=false,air=false,web=false;
