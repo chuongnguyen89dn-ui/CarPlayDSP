@@ -3,7 +3,6 @@
     bundle = CarPlayDSPPrefs;
     cell = PSLinkCell;
     detail = CPDRootListController;
-    icon = "/Library/PreferenceBundles/CarPlayDSPPrefs.bundle/icon.png";
     label = CarPlayDSP;
   };
 }
