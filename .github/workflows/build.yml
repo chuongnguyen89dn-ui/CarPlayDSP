@@ -81,7 +81,6 @@ jobs:
           cp /tmp/duo/DEBIAN/prerm /tmp/combined/DEBIAN/prerm
           chmod 0755 /tmp/combined/DEBIAN /tmp/combined/DEBIAN/postinst /tmp/combined/DEBIAN/prerm
           chmod 0644 /tmp/combined/DEBIAN/control
-          (cd /tmp/combined && find var -type f -exec md5sum '{}' \\; > DEBIAN/md5sums)
           mkdir -p combined-package
           dpkg-deb --build --root-owner-group /tmp/combined combined-package/DuoDash-Airaw_1.0.0_iphoneos-arm64.deb
           dpkg-deb -c combined-package/DuoDash-Airaw_1.0.0_iphoneos-arm64.deb | grep -q 'DuoDash.dylib'
