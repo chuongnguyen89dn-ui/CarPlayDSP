@@ -36,25 +36,13 @@ jobs:
       - name: Build rootless package
         run: make clean package FINALPACKAGE=1
 
-      - name: Download latest DuoDash-Airaw build
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          mkdir -p external
-          curl -fL -H "Accept: application/vnd.github+json" -H "Authorization: Bearer $GH_TOKEN" \
-            "https://api.github.com/repos/chuongnguyen89dn-ui/DauDat-CarPlay/actions/artifacts?name=DauDat-CarPlay&per_page=1" -o /tmp/artifacts.json
-          ARTIFACT_URL=$(python3 -c 'import json; d=json.load(open("/tmp/artifacts.json")); print(d["artifacts"][0]["archive_download_url"])')
-          curl -fL -H "Authorization: Bearer $GH_TOKEN" "$ARTIFACT_URL" -o /tmp/duodash-airaw.zip
-          unzip -j /tmp/duodash-airaw.zip '*.deb' -d external
-          test -n "$(find external -name '*.deb' -print -quit)"
-
       - name: Build APT repository
         shell: bash
         run: |
           set -euo pipefail
           mkdir -p repo/debs
           cp packages/*.deb repo/debs/
-          cp external/*.deb repo/debs/
+          cp sileo-debs/*.deb repo/debs/
 
           cd repo
           dpkg-scanpackages -m debs /dev/null > Packages
