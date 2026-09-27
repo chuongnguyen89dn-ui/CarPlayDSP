@@ -13,10 +13,7 @@ static unsigned long long gSeq=0;
 static volatile sig_atomic_t gTerminating=0;
 static const char *gPath=NULL;
 static const char *paths[]={
-  "/var/mobile/DuoDash-Airaw-Conflict.log",
-  "/var/mobile/Library/Logs/DuoDash-Airaw-Conflict.log",
-  "/var/tmp/DuoDash-Airaw-Conflict.log",
-  "/tmp/DuoDash-Airaw-Conflict.log"
+  "/var/mobile/Documents/DuoDash-Airaw-Logs/Conflict.log"
 };
 
 static void openLog(void){
