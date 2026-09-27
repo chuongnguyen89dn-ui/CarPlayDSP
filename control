@@ -6,4 +6,4 @@ Description: CarPlay DSP proof-of-concept for rootless iOS 16.
 Maintainer: anhchuong
 Author: anhchuong
 Section: Tweaks
-Depends: mobilesubstrate
+Depends: mobilesubstrate, preferenceloader
