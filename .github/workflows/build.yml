@@ -63,6 +63,11 @@ jobs:
           <p><code>https://chuongnguyen89dn-ui.github.io/CarPlayDSP/</code></p>
           </body></html>
           EOF
+          # Sileo normalizes source URLs to lowercase, so publish an identical lowercase path too.
+          mkdir -p carplaydsp
+          cp Release Packages Packages.gz index.html carplaydsp/
+          mkdir -p carplaydsp/debs
+          cp debs/*.deb carplaydsp/debs/
           touch .nojekyll
 
       - name: Upload deb artifact
