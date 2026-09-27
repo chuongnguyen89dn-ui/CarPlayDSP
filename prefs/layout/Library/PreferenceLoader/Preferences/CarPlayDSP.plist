@@ -2,7 +2,7 @@
   entry = {
     bundle = CarPlayDSPPrefs;
     cell = PSLinkCell;
-    detail = CPDRootListController;
+    isController = 1;
     label = CarPlayDSP;
   };
 }
