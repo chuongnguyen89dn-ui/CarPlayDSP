@@ -7,14 +7,13 @@ jobs:
     runs-on: macos-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Install Theos
+      - name: Install Theos and iOS SDK
         run: |
           brew install ldid xz
           git clone --recursive https://github.com/theos/theos.git "$HOME/theos"
+          rm -rf "$HOME/theos/sdks"
+          git clone --depth=1 https://github.com/theos/sdks.git "$HOME/theos/sdks"
           echo "THEOS=$HOME/theos" >> "$GITHUB_ENV"
-      - name: Verify iOS SDK
-        run: |
-          ls -la "$HOME/theos/sdks"
           test -n "$(find "$HOME/theos/sdks" -maxdepth 1 -type d -name '*.sdk' -print -quit)"
       - name: Build package
         run: make clean package FINALPACKAGE=1
