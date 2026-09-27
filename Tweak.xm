@@ -17,15 +17,30 @@ static os_log_t logHandle;
 static NSString * const CPDomain=@"com.anhchuong.carplaydsp";
 static atomic_ullong renderCalls=0, processedCalls=0, processedFrames=0, skippedDisabled=0, skippedNoData=0, renderErrors=0;
 static atomic_ullong lastReportCall=0;
-static const char *CPLogPath="/var/mobile/Documents/CarPlayDSP-Diagnostic.txt";
+static const char *CPLogPaths[]={
+    "/var/mobile/CarPlayDSP-Diagnostic.txt",
+    "/var/tmp/CarPlayDSP-Diagnostic.txt",
+    "/tmp/CarPlayDSP-Diagnostic.txt"
+};
+static int CPLogFD=-1;
+static const char *CPActiveLogPath=NULL;
+
+static void CPOpenLog(){
+    if(CPLogFD>=0) return;
+    for(unsigned i=0;i<sizeof(CPLogPaths)/sizeof(CPLogPaths[0]);i++){
+        int fd=open(CPLogPaths[i],O_WRONLY|O_CREAT|O_APPEND,0666);
+        if(fd>=0){ CPLogFD=fd; CPActiveLogPath=CPLogPaths[i]; dprintf(fd,"\\n=== CarPlayDSP diagnostic session ===\\n"); fsync(fd); return; }
+    }
+}
 
 static void CPFileLog(const char *fmt,...){
-    int fd=open(CPLogPath,O_WRONLY|O_CREAT|O_APPEND,0644);
-    if(fd<0) return;
+    CPOpenLog();
+    if(CPLogFD<0) return;
+    int fd=CPLogFD;
     char body[1024]; va_list ap; va_start(ap,fmt); vsnprintf(body,sizeof(body),fmt,ap); va_end(ap);
     char line[1280]; time_t now=time(NULL); struct tm tmv; localtime_r(&now,&tmv);
     int n=snprintf(line,sizeof(line),"%04d-%02d-%02d %02d:%02d:%02d | %s\n",tmv.tm_year+1900,tmv.tm_mon+1,tmv.tm_mday,tmv.tm_hour,tmv.tm_min,tmv.tm_sec,body);
-    if(n>0) write(fd,line,(size_t)n); close(fd);
+    if(n>0){ write(fd,line,(size_t)n); fsync(fd); }
 }
 
 
@@ -83,7 +98,7 @@ static OSStatus hookedAudioUnitRender(AudioUnit unit,AudioUnitRenderActionFlags 
 __attribute__((constructor))
 static void CarPlayDSPInit(){
     logHandle=os_log_create("com.anhchuong.carplaydsp","diagnostic");
-    unlink(CPLogPath);
+    CPOpenLog();
     CPFileLog("=== CarPlayDSP diagnostic session start ===");
     CPFileLog("INIT process=%s pid=%d",getprogname(),getpid());
     os_log(logHandle,"INIT process=%{public}s pid=%{public}d",getprogname(),getpid());
@@ -98,6 +113,6 @@ static void CarPlayDSPInit(){
         MSHookFunction(symbol,(void*)&hookedAudioUnitRender,(void**)&originalAudioUnitRender);
         os_log(logHandle,"HOOK installed original=%{public}p enabled=%{public}d",(void*)originalAudioUnitRender,enabled);
         CPFileLog("HOOK installed original=%p enabled=%d",(void*)originalAudioUnitRender,enabled);
-        CPFileLog("LOG FILE: %s",CPLogPath);
+        CPFileLog("LOG FILE: %s",CPActiveLogPath?CPActiveLogPath:"NO WRITABLE PATH");
     } else { os_log_error(logHandle,"HOOK FAILED: AudioUnitRender symbol unavailable"); CPFileLog("HOOK FAILED: AudioUnitRender symbol unavailable"); }
 }
