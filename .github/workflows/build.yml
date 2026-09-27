@@ -56,7 +56,7 @@ jobs:
           cat > /tmp/combined/DEBIAN/control <<'EOF'
           Package: com.chuong.duodash-airaw
           Name: DuoDash + Airaw
-          Version: 1.0.0
+          Version: 1.0.1
           Architecture: iphoneos-arm64
           Maintainer: chuongnguyen89dn-ui
           Author: SenseTechLab / Axs
@@ -71,6 +71,15 @@ jobs:
           #!/var/jb/bin/sh
           set -e
           JB=""; [ -d /var/jb ] && JB="/var/jb"
+LOGDIR="/var/mobile/Documents/DuoDash-Airaw-Logs"
+LOGFILE="$LOGDIR/Conflict.log"
+mkdir -p "$LOGDIR"
+touch "$LOGFILE"
+chown -R mobile:mobile "$LOGDIR" 2>/dev/null || true
+chmod 0775 "$LOGDIR" 2>/dev/null || true
+chmod 0664 "$LOGFILE" 2>/dev/null || true
+printf '\n%s | PACKAGE INSTALLED com.chuong.duodash-airaw 1.0.1\n' "$(date '+%Y-%m-%d %H:%M:%S')" >> "$LOGFILE"
+
           for d in "$JB/Library/Airaw" "$JB/Library/Airaw/Preferences" "$JB/Library/Airaw/backup"; do [ -d "$d" ] && chown mobile:mobile "$d" 2>/dev/null || true; done
           if [ -f "$JB/Library/LaunchDaemons/com.sensetechlab.autoinject.plist" ]; then
             launchctl unload "$JB/Library/LaunchDaemons/com.sensetechlab.autoinject.plist" 2>/dev/null || true
@@ -85,8 +94,8 @@ jobs:
           chmod 0755 /tmp/combined/DEBIAN /tmp/combined/DEBIAN/postinst /tmp/combined/DEBIAN/prerm
           chmod 0644 /tmp/combined/DEBIAN/control
           mkdir -p combined-package
-          dpkg-deb --build --root-owner-group /tmp/combined combined-package/DuoDash-Airaw_1.0.0_iphoneos-arm64.deb
-          dpkg-deb -c combined-package/DuoDash-Airaw_1.0.0_iphoneos-arm64.deb > /tmp/combined-contents.txt
+          dpkg-deb --build --root-owner-group /tmp/combined combined-package/DuoDash-Airaw_1.0.1_iphoneos-arm64.deb
+          dpkg-deb -c combined-package/DuoDash-Airaw_1.0.1_iphoneos-arm64.deb > /tmp/combined-contents.txt
           grep -q 'DuoDash.dylib' /tmp/combined-contents.txt
           grep -q 'Airaw.dylib' /tmp/combined-contents.txt
           grep -q 'DuoDashAirawConflictProbe.dylib' /tmp/combined-contents.txt
