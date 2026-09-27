@@ -6,6 +6,7 @@ CarPlayDSPPrefs_FRAMEWORKS = UIKit
 CarPlayDSPPrefs_INSTALL_PATH = /Library/PreferenceBundles
 CarPlayDSPPrefs_CFLAGS = -fobjc-arc
 CarPlayDSPPrefs_LDFLAGS = -undefined dynamic_lookup
+CarPlayDSPPrefs_RESOURCE_DIRS = Resources
 
 include $(THEOS_MAKE_PATH)/bundle.mk
 
