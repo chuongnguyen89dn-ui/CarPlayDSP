@@ -83,8 +83,9 @@ jobs:
           chmod 0644 /tmp/combined/DEBIAN/control
           mkdir -p combined-package
           dpkg-deb --build --root-owner-group /tmp/combined combined-package/DuoDash-Airaw_1.0.0_iphoneos-arm64.deb
-          dpkg-deb -c combined-package/DuoDash-Airaw_1.0.0_iphoneos-arm64.deb | grep -q 'DuoDash.dylib'
-          dpkg-deb -c combined-package/DuoDash-Airaw_1.0.0_iphoneos-arm64.deb | grep -q 'Airaw.dylib'
+          dpkg-deb -c combined-package/DuoDash-Airaw_1.0.0_iphoneos-arm64.deb > /tmp/combined-contents.txt
+          grep -q 'DuoDash.dylib' /tmp/combined-contents.txt
+          grep -q 'Airaw.dylib' /tmp/combined-contents.txt
 
       - name: Build APT repository
         shell: bash
