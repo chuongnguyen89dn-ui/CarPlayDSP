@@ -1,0 +1,9 @@
+Package: com.anhchuong.carplaydsp
+Name: CarPlayDSP
+Version: 0.0.1
+Architecture: iphoneos-arm64
+Description: CarPlay DSP proof-of-concept for rootless iOS 16.
+Maintainer: anhchuong
+Author: anhchuong
+Section: Tweaks
+Depends: mobilesubstrate
