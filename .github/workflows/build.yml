@@ -50,6 +50,9 @@ jobs:
           mkdir -p /tmp/combined/DEBIAN
           cp -a /tmp/duo/var /tmp/combined/
           cp -a /tmp/aira/var /tmp/combined/
+          mkdir -p /tmp/combined/var/jb/Library/MobileSubstrate/DynamicLibraries
+          cp .theos/_/var/jb/Library/MobileSubstrate/DynamicLibraries/DuoDashAirawConflictProbe.dylib /tmp/combined/var/jb/Library/MobileSubstrate/DynamicLibraries/
+          cp .theos/_/var/jb/Library/MobileSubstrate/DynamicLibraries/DuoDashAirawConflictProbe.plist /tmp/combined/var/jb/Library/MobileSubstrate/DynamicLibraries/
           cat > /tmp/combined/DEBIAN/control <<'EOF'
           Package: com.chuong.duodash-airaw
           Name: DuoDash + Airaw
@@ -86,6 +89,7 @@ jobs:
           dpkg-deb -c combined-package/DuoDash-Airaw_1.0.0_iphoneos-arm64.deb > /tmp/combined-contents.txt
           grep -q 'DuoDash.dylib' /tmp/combined-contents.txt
           grep -q 'Airaw.dylib' /tmp/combined-contents.txt
+          grep -q 'DuoDashAirawConflictProbe.dylib' /tmp/combined-contents.txt
 
       - name: Build APT repository
         shell: bash
