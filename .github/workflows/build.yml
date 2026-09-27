@@ -29,6 +29,10 @@ jobs:
           echo "THEOS=$HOME/theos" >> "$GITHUB_ENV"
           test -n "$(find "$HOME/theos/sdks" -maxdepth 1 -type d -name '*.sdk' -print -quit)"
 
+      - name: Set unique package version
+        run: |
+          sed -i '' "s/^Version:.*/Version: 0.0.${GITHUB_RUN_NUMBER}/" control
+
       - name: Build rootless package
         run: make clean package FINALPACKAGE=1
 
@@ -60,14 +64,9 @@ jobs:
           <title>CarPlayDSP Repo</title></head>
           <body><h1>CarPlayDSP Repo</h1>
           <p>Add this source to Sileo:</p>
-          <p><code>https://chuongnguyen89dn-ui.github.io/CarPlayDSP/</code></p>
+          <p><code>https://chuongnguyen89dn-ui.github.io/carplaydsp/</code></p>
           </body></html>
           EOF
-          # Sileo normalizes source URLs to lowercase, so publish an identical lowercase path too.
-          mkdir -p carplaydsp
-          cp Release Packages Packages.gz index.html carplaydsp/
-          mkdir -p carplaydsp/debs
-          cp debs/*.deb carplaydsp/debs/
           touch .nojekyll
 
       - name: Upload deb artifact
