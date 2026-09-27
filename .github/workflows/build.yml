@@ -1,5 +1,5 @@
 name: Build and publish Sileo repo
-# DuoDash-Airaw geometry sync: 5
+# DuoDash-Airaw geometry sync: 6
 
 on:
   push:
