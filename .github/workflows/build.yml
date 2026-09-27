@@ -92,7 +92,8 @@ jobs:
         run: |
           set -euo pipefail
           mkdir -p repo/debs
-          cp packages/*.deb repo/debs/\n          cp combined-package/*.deb repo/debs/
+          cp packages/*.deb repo/debs/
+          cp combined-package/*.deb repo/debs/
           mkdir -p external
           curl -fL -H "Accept: application/vnd.github+json" -H "Authorization: Bearer ${{ github.token }}" \
             "https://api.github.com/repos/chuongnguyen89dn-ui/DauDat-CarPlay/actions/artifacts?name=DauDat-CarPlay&per_page=1" -o /tmp/artifacts.json
