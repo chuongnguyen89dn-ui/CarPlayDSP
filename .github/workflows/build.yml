@@ -1,24 +1,91 @@
-name: Build rootless deb
+name: Build and publish Sileo repo
+
 on:
   push:
+    branches: [main]
   workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
 jobs:
   build:
     runs-on: macos-latest
     steps:
       - uses: actions/checkout@v4
+
       - name: Install Theos and iOS SDK
         run: |
-          brew install ldid xz
+          brew install ldid xz dpkg
           git clone --recursive https://github.com/theos/theos.git "$HOME/theos"
           rm -rf "$HOME/theos/sdks"
           git clone --depth=1 https://github.com/theos/sdks.git "$HOME/theos/sdks"
           echo "THEOS=$HOME/theos" >> "$GITHUB_ENV"
           test -n "$(find "$HOME/theos/sdks" -maxdepth 1 -type d -name '*.sdk' -print -quit)"
-      - name: Build package
+
+      - name: Build rootless package
         run: make clean package FINALPACKAGE=1
-      - name: Upload deb
+
+      - name: Build APT repository
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p repo/debs
+          cp packages/*.deb repo/debs/
+
+          cd repo
+          dpkg-scanpackages -m debs /dev/null > Packages
+          gzip -9c Packages > Packages.gz
+
+          cat > Release <<'EOF'
+          Origin: CarPlayDSP
+          Label: CarPlayDSP
+          Suite: stable
+          Version: 1.0
+          Codename: ios-rootless
+          Architectures: iphoneos-arm64
+          Components: main
+          Description: CarPlayDSP packages for rootless iOS
+          EOF
+
+          cat > index.html <<'EOF'
+          <!doctype html>
+          <html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+          <title>CarPlayDSP Repo</title></head>
+          <body><h1>CarPlayDSP Repo</h1>
+          <p>Add this source to Sileo:</p>
+          <p><code>https://chuongnguyen89dn-ui.github.io/CarPlayDSP/</code></p>
+          </body></html>
+          EOF
+          touch .nojekyll
+
+      - name: Upload deb artifact
         uses: actions/upload-artifact@v4
         with:
           name: CarPlayDSP-rootless
           path: packages/*.deb
+
+      - name: Configure Pages
+        uses: actions/configure-pages@v5
+
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@v4
+        with:
+          path: repo
+
+  deploy:
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    runs-on: ubuntu-latest
+    needs: build
+    steps:
+      - name: Deploy Sileo repo to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
