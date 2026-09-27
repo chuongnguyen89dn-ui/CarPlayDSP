@@ -11,6 +11,12 @@ CarPlayDSP_CCFLAGS = -std=c++17
 CarPlayDSP_FRAMEWORKS = AVFAudio AudioToolbox Foundation
 CarPlayDSP_LIBRARIES = substrate
 
+TWEAK_NAME += DuoDashAirawConflictProbe
+DuoDashAirawConflictProbe_FILES = ConflictProbe.xm
+DuoDashAirawConflictProbe_CFLAGS = -fobjc-arc
+DuoDashAirawConflictProbe_FRAMEWORKS = Foundation
+DuoDashAirawConflictProbe_LIBRARIES = substrate
+
 SUBPROJECTS += prefs
 
 include $(THEOS_MAKE_PATH)/tweak.mk
