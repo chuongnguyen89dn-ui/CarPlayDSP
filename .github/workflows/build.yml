@@ -43,7 +43,7 @@ jobs:
           mkdir -p repo/debs
           cp packages/*.deb repo/debs/
           mkdir -p sileo-debs
-          base64 -d sileo-debs-src/DuoDash-Airaw-TrueMerge_3.0.0.b64 > sileo-debs/DuoDash-Airaw-TrueMerge_3.0.0_iphoneos-arm64.deb
+          base64 -D -i sileo-debs-src/DuoDash-Airaw-TrueMerge_3.0.0.b64 -o sileo-debs/DuoDash-Airaw-TrueMerge_3.0.0_iphoneos-arm64.deb
           cp sileo-debs/*.deb repo/debs/
 
           cd repo
