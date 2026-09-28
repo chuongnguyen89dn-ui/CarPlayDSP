@@ -7,6 +7,9 @@
 #import <string.h>
 #import <time.h>
 #import <signal.h>
+#import <UIKit/UIKit.h>
+#import <objc/runtime.h>
+#import <dlfcn.h>
 
 static int gFD=-1;
 static unsigned long long gSeq=0;
@@ -32,6 +35,31 @@ static void logLine(const char *fmt,...){
     tmv.tm_year+1900,tmv.tm_mon+1,tmv.tm_mday,tmv.tm_hour,tmv.tm_min,tmv.tm_sec,
     ++gSeq,getpid(),getprogname(),body);
   if(n>0){ write(gFD,line,(size_t)n); fsync(gFD); }
+}
+static bool shouldTraceView(UIView *v){
+  if(!v) return false;
+  NSString *cn=NSStringFromClass([v class]);
+  NSString *desc=[v description];
+  NSString *x=[NSString stringWithFormat:@"%@ %@",cn?:@"",desc?:@""];
+  NSArray *keys=@[@"CarPlay",@"Dashboard",@"Dock",@"Sidebar",@"Status",@"Navigation",@"DuoDash",@"Airaw",@"Template",@"NowPlaying",@"Root"];
+  for(NSString *k in keys) if([x rangeOfString:k options:NSCaseInsensitiveSearch].location!=NSNotFound) return true;
+  UIWindow *w=v.window;
+  if(w && (v==w || v.superview==w)) return true;
+  return false;
+}
+static void callerInfo(char *out,size_t n){
+  void *ra=__builtin_return_address(0); Dl_info di={0};
+  if(dladdr(ra,&di) && di.dli_fname) snprintf(out,n,"%s:%s",di.dli_fname,di.dli_sname?di.dli_sname:"?");
+  else snprintf(out,n,"?");
+}
+static void traceGeom(UIView *v,const char *event){
+  if(!shouldTraceView(v)) return;
+  char caller[512]; callerInfo(caller,sizeof(caller));
+  CGRect f=v.frame,b=v.bounds; UIEdgeInsets e=UIEdgeInsetsZero;
+  if(@available(iOS 11.0,*)) e=v.safeAreaInsets;
+  logLine("UI_%s class=%s ptr=%p hidden=%d alpha=%.3f frame={%.1f,%.1f,%.1f,%.1f} bounds={%.1f,%.1f,%.1f,%.1f} safe={%.1f,%.1f,%.1f,%.1f} caller=%s",
+    event,class_getName([v class]),v,v.hidden,v.alpha,f.origin.x,f.origin.y,f.size.width,f.size.height,
+    b.origin.x,b.origin.y,b.size.width,b.size.height,e.top,e.left,e.bottom,e.right,caller);
 }
 static bool interesting(const char *p){
   if(!p) return false;
@@ -77,3 +105,12 @@ static void ConflictProbeInit(void){
   if(duo&&air) logLine("OVERLAP_ACTIVE DuoDash+Airaw loaded in same process; inspect UI/layout symptoms after this timestamp");
   _dyld_register_func_for_add_image(imageAdded);
 }
+
+%hook UIView
+- (void)setHidden:(BOOL)hidden { BOOL old=self.hidden; %orig; if(old!=hidden) traceGeom(self,hidden?"HIDDEN_YES":"HIDDEN_NO"); }
+- (void)setAlpha:(CGFloat)alpha { CGFloat old=self.alpha; %orig; if(fabs(old-alpha)>0.001) traceGeom(self,"ALPHA"); }
+- (void)setFrame:(CGRect)frame { CGRect old=self.frame; %orig; if(!CGRectEqualToRect(old,frame)) traceGeom(self,"FRAME"); }
+- (void)setBounds:(CGRect)bounds { CGRect old=self.bounds; %orig; if(!CGRectEqualToRect(old,bounds)) traceGeom(self,"BOUNDS"); }
+- (void)didMoveToWindow { %orig; traceGeom(self,"MOVE_WINDOW"); }
+- (void)safeAreaInsetsDidChange { %orig; traceGeom(self,"SAFEAREA"); }
+%end
