@@ -1,0 +1,20 @@
+name: Independent split geometry checks
+on:
+  push:
+    branches: [prototype/independent-carplay-split]
+    paths:
+      - 'independent-split/**'
+      - '.github/workflows/independent-split.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  geometry:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Compile and run isolated geometry tests
+        run: |
+          set -euo pipefail
+          clang -fobjc-arc -framework Foundation -framework CoreGraphics -Iindependent-split independent-split/CPSLayoutTests.m -o /tmp/cps-layout-tests
+          /tmp/cps-layout-tests
