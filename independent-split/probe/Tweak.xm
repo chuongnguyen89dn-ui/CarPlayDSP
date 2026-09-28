@@ -3,6 +3,8 @@
 #import <objc/runtime.h>
 #import <sys/stat.h>
 #import <unistd.h>
+#import <fcntl.h>
+#import <string.h>
 
 static NSString * const CPSLogPath = @"/var/mobile/Documents/CPSSceneProbe.log";
 static void CPSLog(NSString *message) {
@@ -41,17 +43,15 @@ static void CPSSnapshot(void) {
     }
     CPSLog(@"SNAPSHOT END");
 }
-%hook UIApplication
-- (void)applicationDidBecomeActive:(UIApplication *)application {
-    %orig;
-    CPSSnapshot();
-}
-%end
 %ctor {
     @autoreleasepool {
         NSString *name=[NSProcessInfo processInfo].processName;
         if(![name isEqualToString:@"CarPlay"] && ![name isEqualToString:@"CarPlayTemplateUIHost"]) return;
         CPSLog(@"PROBE LOADED; read-only scene inventory");
-        dispatch_async(dispatch_get_main_queue(), ^{ CPSSnapshot(); });
+        dispatch_async(dispatch_get_main_queue(), ^{
+            [[NSNotificationCenter defaultCenter] addObserverForName:UIApplicationDidBecomeActiveNotification
+              object:nil queue:[NSOperationQueue mainQueue] usingBlock:^(NSNotification *note) { CPSSnapshot(); }];
+            CPSSnapshot();
+        });
     }
 }
