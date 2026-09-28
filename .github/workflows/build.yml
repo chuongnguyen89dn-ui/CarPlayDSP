@@ -56,7 +56,7 @@ jobs:
           cat > /tmp/combined/DEBIAN/control <<'EOF'
           Package: com.chuong.duodash-airaw
           Name: DuoDash + Airaw
-          Version: 1.0.2
+          Version: 1.0.3
           Architecture: iphoneos-arm64
           Maintainer: chuongnguyen89dn-ui
           Author: SenseTechLab / Axs
@@ -94,8 +94,8 @@ jobs:
           chmod 0755 /tmp/combined/DEBIAN /tmp/combined/DEBIAN/postinst /tmp/combined/DEBIAN/prerm
           chmod 0644 /tmp/combined/DEBIAN/control
           mkdir -p combined-package
-          dpkg-deb --build --root-owner-group /tmp/combined combined-package/DuoDash-Airaw_1.0.2_iphoneos-arm64.deb
-          dpkg-deb -c combined-package/DuoDash-Airaw_1.0.2_iphoneos-arm64.deb > /tmp/combined-contents.txt
+          dpkg-deb --build --root-owner-group /tmp/combined combined-package/DuoDash-Airaw_1.0.3_iphoneos-arm64.deb
+          dpkg-deb -c combined-package/DuoDash-Airaw_1.0.3_iphoneos-arm64.deb > /tmp/combined-contents.txt
           grep -q 'DuoDash.dylib' /tmp/combined-contents.txt
           grep -q 'Airaw.dylib' /tmp/combined-contents.txt
           grep -q 'DuoDashAirawConflictProbe.dylib' /tmp/combined-contents.txt
