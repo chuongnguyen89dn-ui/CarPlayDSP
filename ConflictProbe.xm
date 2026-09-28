@@ -114,3 +114,32 @@ static void ConflictProbeInit(void){
 - (void)didMoveToWindow { %orig; traceGeom(self,"MOVE_WINDOW"); }
 - (void)safeAreaInsetsDidChange { %orig; traceGeom(self,"SAFEAREA"); }
 %end
+
+%hook UIApplication
+- (void)sendEvent:(UIEvent *)event {
+  if(event.type==UIEventTypeTouches){
+    NSSet *touches=[event allTouches];
+    for(UITouch *t in touches){
+      if(t.phase!=UITouchPhaseBegan && t.phase!=UITouchPhaseEnded) continue;
+      UIWindow *w=t.window;
+      CGPoint p=[t locationInView:w];
+      UIView *hit=[w hitTest:p withEvent:event];
+      CGRect hf=hit?hit.frame:CGRectZero;
+      logLine("TOUCH phase=%s x=%.1f y=%.1f window=%s hitClass=%s hit=%p hidden=%d alpha=%.3f frame={%.1f,%.1f,%.1f,%.1f}",
+        t.phase==UITouchPhaseBegan?"BEGAN":"ENDED",p.x,p.y,
+        w?class_getName([w class]):"nil",hit?class_getName([hit class]):"nil",hit,
+        hit?hit.hidden:0,hit?hit.alpha:0.0,hf.origin.x,hf.origin.y,hf.size.width,hf.size.height);
+    }
+  }
+  %orig;
+}
+%end
+
+%hook UIControl
+- (void)sendAction:(SEL)action to:(id)target forEvent:(UIEvent *)event {
+  logLine("ACTION controlClass=%s control=%p selector=%s targetClass=%s target=%p",
+    class_getName([self class]),self,action?sel_getName(action):"?",
+    target?class_getName([target class]):"nil",target);
+  %orig;
+}
+%end
