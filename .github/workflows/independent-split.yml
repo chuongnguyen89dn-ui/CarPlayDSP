@@ -18,3 +18,27 @@ jobs:
           set -euo pipefail
           clang -fobjc-arc -framework Foundation -framework CoreGraphics -Iindependent-split independent-split/CPSLayoutTests.m -o /tmp/cps-layout-tests
           /tmp/cps-layout-tests
+
+  probe:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install Theos and SDK
+        run: |
+          set -euo pipefail
+          brew install ldid xz dpkg
+          git clone --recursive --depth=1 https://github.com/theos/theos.git "$HOME/theos"
+          git clone --depth=1 https://github.com/theos/sdks.git "$HOME/theos/sdks"
+          echo "THEOS=$HOME/theos" >> "$GITHUB_ENV"
+      - name: Build isolated diagnostic DEB
+        working-directory: independent-split/probe
+        run: |
+          set -euo pipefail
+          make package FINALPACKAGE=1
+          dpkg-deb -c packages/*.deb | tee /tmp/probe-files.txt
+          grep -q 'CPSSceneProbe.dylib' /tmp/probe-files.txt
+          grep -q 'CPSSceneProbe.plist' /tmp/probe-files.txt
+      - uses: actions/upload-artifact@v4
+        with:
+          name: CPSSceneProbe-diagnostic-only
+          path: independent-split/probe/packages/*.deb
