@@ -1,5 +1,6 @@
 #import <Foundation/Foundation.h>
 #import "CPSLayout.h"
+#import "CPSState.h"
 #import <assert.h>
 #import <math.h>
 
@@ -37,7 +38,18 @@ int main(void) {
         assert(!CPSComputeLayout(bad,YES).valid);
         bad=offset; bad.scene.size.width=0;
         assert(!CPSComputeLayout(bad,YES).valid);
-        puts("CPSLayout geometry tests passed");
+        CPSState state={CPSModeNormal,0.5};
+        assert(CPSAdvance(&state,CPSEventExpand) && state.mode==CPSModeEntering);
+        assert(CPSAdvance(&state,CPSEventAnimationFinished) && state.mode==CPSModeExpanded);
+        assert(CPSSetDividerFraction(&state,0.3));
+        assert(CPSAdvance(&state,CPSEventRestore) && state.mode==CPSModeExiting);
+        assert(CPSAdvance(&state,CPSEventExpand) && state.mode==CPSModeEntering);
+        assert(CPSAdvance(&state,CPSEventAnimationFinished) && state.mode==CPSModeExpanded);
+        near(state.dividerFraction,0.3);
+        assert(CPSAdvance(&state,CPSEventDisconnect) && state.mode==CPSModeNormal);
+        assert(!CPSSetDividerFraction(&state,NAN));
+        assert(!CPSAdvance(&state,CPSEventAnimationFinished));
+        puts("CPSLayout geometry and transition tests passed");
     }
     return 0;
 }
