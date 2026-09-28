@@ -1,0 +1,8 @@
+Package: com.chuong.cpssceneprobe
+Name: CarPlay Split Scene Probe
+Version: 0.1.0
+Architecture: iphoneos-arm64
+Maintainer: chuongnguyen89dn-ui
+Section: Tweaks
+Depends: firmware (>= 15.0), mobilesubstrate (>= 0.9.5000) | ellekit
+Description: Isolated read-only CarPlay scene geometry diagnostic; no layout modifications.
