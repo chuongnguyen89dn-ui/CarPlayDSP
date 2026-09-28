@@ -107,10 +107,10 @@ static void ConflictProbeInit(void){
 }
 
 %hook UIView
-- (void)setHidden:(BOOL)hidden { BOOL old=self.hidden; %orig; if(old!=hidden) traceGeom(self,hidden?"HIDDEN_YES":"HIDDEN_NO"); }
-- (void)setAlpha:(CGFloat)alpha { CGFloat old=self.alpha; %orig; if(fabs(old-alpha)>0.001) traceGeom(self,"ALPHA"); }
-- (void)setFrame:(CGRect)frame { CGRect old=self.frame; %orig; if(!CGRectEqualToRect(old,frame)) traceGeom(self,"FRAME"); }
-- (void)setBounds:(CGRect)bounds { CGRect old=self.bounds; %orig; if(!CGRectEqualToRect(old,bounds)) traceGeom(self,"BOUNDS"); }
+- (void)setHidden:(BOOL)hidden { BOOL old=self.hidden; %orig(hidden); if(old!=hidden) traceGeom(self,hidden?"HIDDEN_YES":"HIDDEN_NO"); }
+- (void)setAlpha:(CGFloat)alpha { CGFloat old=self.alpha; %orig(alpha); if(fabs(old-alpha)>0.001) traceGeom(self,"ALPHA"); }
+- (void)setFrame:(CGRect)frame { CGRect old=self.frame; %orig(frame); if(!CGRectEqualToRect(old,frame)) traceGeom(self,"FRAME"); }
+- (void)setBounds:(CGRect)bounds { CGRect old=self.bounds; %orig(bounds); if(!CGRectEqualToRect(old,bounds)) traceGeom(self,"BOUNDS"); }
 - (void)didMoveToWindow { %orig; traceGeom(self,"MOVE_WINDOW"); }
 - (void)safeAreaInsetsDidChange { %orig; traceGeom(self,"SAFEAREA"); }
 %end
@@ -131,7 +131,7 @@ static void ConflictProbeInit(void){
         hit?hit.hidden:0,hit?hit.alpha:0.0,hf.origin.x,hf.origin.y,hf.size.width,hf.size.height);
     }
   }
-  %orig;
+  %orig(event);
 }
 %end
 
@@ -140,6 +140,6 @@ static void ConflictProbeInit(void){
   logLine("ACTION controlClass=%s control=%p selector=%s targetClass=%s target=%p",
     class_getName([self class]),self,action?sel_getName(action):"?",
     target?class_getName([target class]):"nil",target);
-  %orig;
+  %orig(action,target,event);
 }
 %end
