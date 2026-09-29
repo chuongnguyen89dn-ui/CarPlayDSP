@@ -150,7 +150,7 @@ static NSArray *CPSAvailableApps(void) {
  CGFloat width=MIN(350,bounds.size.width-16);self.toolbar.frame=CGRectMake((bounds.size.width-width)/2,bounds.size.height-42,width,36);self.toolbarStack.frame=self.toolbar.bounds;
  self.edge.frame=CGRectMake(CGRectGetMidX(bounds)-20,bounds.size.height-26,40,24);self.edge.hidden=!self.toolbar.hidden;
  self.statusLabel.frame=CGRectMake(8,4,bounds.size.width-16,34);
- if(self.panel){CGFloat w=MIN(230,bounds.size.width-16),h=MIN(164,bounds.size.height-54);CGFloat x=(bounds.size.width-w)/2,y=bounds.size.height-h-46;
+ if(self.panel){CGFloat desired=self.list?MIN(120,MAX(40,self.list.rows.count*40)):88;CGFloat w=MIN(220,bounds.size.width-16),h=MIN(desired,bounds.size.height-54);CGFloat x=(bounds.size.width-w)/2,y=bounds.size.height-h-46;
   if(self.panelPane>=0){CGRect p=self.panes[self.panelPane].frame;w=MIN(w,MAX(40,p.size.width-8));h=MIN(h,MAX(40,p.size.height-34));x=CGRectGetMaxX(p)-w-4;y=p.origin.y+30;}
   self.panel.frame=CGRectMake(x,MAX(0,y),w,h);if(self.list)self.list.view.frame=self.panel.contentView.bounds;
   else {NSArray *buttons=self.panel.contentView.subviews;CGFloat bw=w/4,bh=h/2;for(NSUInteger i=0;i<buttons.count;i++)[buttons[i] setFrame:CGRectMake((i%4)*bw,(i/4)*bh,bw,bh)];}
@@ -197,10 +197,10 @@ static NSArray *CPSAvailableApps(void) {
 }
 - (void)drag:(UIPanGestureRecognizer *)g {
  [self.hideTimer invalidate];if(g.state==UIGestureRecognizerStateBegan){[self dismissPanel];self.toolbar.hidden=YES;}
- CPSFrames f=CPSFramesMake(self.view.bounds,(int)self.layoutKind,self.fraction,self.secondary,-1);int n=(int)g.view.tag;if(n>=f.boundaryCount)return;CGPoint p=[g locationInView:self.view];BOOL vertical=f.vertical[n];CGFloat length=vertical?self.view.bounds.size.width:self.view.bounds.size.height;if(length<=0)return;double v=CPSClamp((vertical?p.x:p.y)/length,0,1);
+ CPSFrames f=CPSFramesMake(self.view.bounds,(int)self.layoutKind,self.fraction,self.secondary,-1);int n=(int)g.view.tag;if(n>=f.boundaryCount)return;CGPoint p=[g locationInView:self.view];BOOL vertical=f.vertical[n];CGFloat length=vertical?self.view.bounds.size.width:self.view.bounds.size.height;if(length<=0)return;double raw=CPSClamp((vertical?p.x:p.y)/length,0,1),v=raw;
  if(n==0){if(self.layoutKind==4)v=MIN(v,self.secondary);self.fraction=v;}else {if(self.layoutKind==4)v=MAX(v,self.fraction);self.secondary=v;}
  if(g.state==UIGestureRecognizerStateEnded){
-  if(v<.03||v>.97){CPSFrames end=CPSFramesMake(self.view.bounds,(int)self.layoutKind,self.fraction,self.secondary,-1);double area=-1;for(int i=0;i<end.count;i++){double a=end.panes[i].size.width*end.panes[i].size.height;if(a>area){area=a;self.maximized=i;}}}
+  if(raw<.03||raw>.97){CPSFrames end=CPSFramesMake(self.view.bounds,(int)self.layoutKind,self.fraction,self.secondary,-1);CGRect boundary=f.boundaries[n];CGPoint probe=CGPointMake(CGRectGetMidX(boundary),CGRectGetMidY(boundary));if(vertical)probe.x=raw<.03?self.view.bounds.size.width-.1:.1;else probe.y=raw<.03?self.view.bounds.size.height-.1:.1;double area=-1;NSInteger candidate=-1;for(int i=0;i<end.count;i++){CGRect r=end.panes[i];double a=r.size.width*r.size.height;if(a>area){area=a;self.maximized=i;}if(!CGRectIsEmpty(r)&&CGRectContainsPoint(r,probe))candidate=i;}if(candidate>=0)self.maximized=candidate;}
   [self saveLayout];[self armHide];
  }else if(g.state==UIGestureRecognizerStateCancelled){self.fraction=self.layoutKind==4?1./3:.5;self.secondary=self.layoutKind==4?2./3:.5;[self armHide];}
  [self.view setNeedsLayout];[self.view layoutIfNeeded];

@@ -6,7 +6,7 @@ typedef struct { CGRect panes[3]; CGRect boundaries[2]; bool vertical[2]; int co
 static inline double CPSClamp(double v,double lo,double hi) { return isfinite(v)?fmax(lo,fmin(hi,v)):(lo+hi)/2; }
 static inline CPSFrames CPSFramesMake(CGRect r,int kind,double a,double b,int maximized) {
     CPSFrames o={0}; double x=r.origin.x,y=r.origin.y,w=r.size.width,h=r.size.height;
-    if(!isfinite(w)||!isfinite(h)||w<=0||h<=0)return o;
+    if(!isfinite(x)||!isfinite(y)||!isfinite(w)||!isfinite(h)||w<=0||h<=0)return o;
     kind=kind<1||kind>8?2:kind; o.count=kind==1?1:(kind<=3?2:3);
     if(maximized>=0&&maximized<o.count){o.panes[maximized]=r;return o;}
     a=CPSClamp(a,0,1);b=CPSClamp(b,0,1);

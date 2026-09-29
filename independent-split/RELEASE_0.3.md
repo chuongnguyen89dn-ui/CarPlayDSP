@@ -1,4 +1,4 @@
-# CarPlay Split 0.3.0 alpha1
+# CarPlay Split 0.3.0 alpha2
 
 Independent implementation; no DuoDash, Airaw or Cauxo binary/source payload is included.
 The bottom-gap investigation for the reference DuoDash installation is deferred.
