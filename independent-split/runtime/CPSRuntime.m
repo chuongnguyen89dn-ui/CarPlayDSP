@@ -57,6 +57,7 @@ static CPSSplitController *CPSRoot;
 @property(nonatomic,strong) id handle;
 @property(nonatomic,strong) NSHashTable *phoneViews;
 @property(nonatomic,strong) NSTimer *timer;
+@property(nonatomic,copy) void (^ready)(void);
 @property(nonatomic,weak) UIView *container;
 @property(nonatomic) CGSize requestedSize;
 @property(nonatomic) CGSize appliedSize;
@@ -77,13 +78,15 @@ static CPSSplitController *CPSRoot;
         SEL controllerInit=NSSelectorFromString(@"initWithIdentifier:andApplicationSceneEntity:");
         if(!application || ![entityClass instancesRespondToSelector:entityInit] ||
            ![controllerClass instancesRespondToSelector:controllerInit] ||
-           ![controllerClass instancesRespondToSelector:NSSelectorFromString(@"setRequestedMode:")]) {
+           ![controllerClass instancesRespondToSelector:NSSelectorFromString(@"setRequestedMode:")] ||
+           ![controllerClass instancesRespondToSelector:NSSelectorFromString(@"_setCurrentMode:")]) {
             if(error) *error=CPSError(@"Phiên bản iOS này thiếu API mở vùng ứng dụng.");
             return nil;
         }
         _entity=((id(*)(id,SEL,id))objc_msgSend)([entityClass alloc],entityInit,application);
+        // SpringBoard uses this identifier to bind the controller to its app scene.
         _controller=((id(*)(id,SEL,id,id))objc_msgSend)([controllerClass alloc],controllerInit,
-                       [@"CarPlaySplit." stringByAppendingString:NSUUID.UUID.UUIDString],_entity);
+                       bundleID,_entity);
         if(!_entity || !_controller) {
             if(error) *error=CPSError(@"Không tạo được vùng ứng dụng.");
             return nil;
@@ -145,6 +148,7 @@ static CPSSplitController *CPSRoot;
                     }
                 }
                 CPSLog([NSString stringWithFormat:@"scene attached bundle=%@ class=%@",self.bundleID,NSStringFromClass([scene class])]);
+                if(self.ready) self.ready();
             }
             if(!CGSizeEqualToSize(self.appliedSize,self.requestedSize)) [self applySize];
             return;
@@ -222,7 +226,10 @@ static CPSSplitController *CPSRoot;
     @try {
         [self.controller willMoveToParentViewController:nil];
         [self.controller beginAppearanceTransition:NO animated:NO];
-        CPSInteger(self.controller,@"setRequestedMode:",0);
+        // setRequestedMode: queues an asynchronous transition. Releasing the
+        // controller during that transition triggers SBAppViewController's
+        // dealloc assertion on iOS 16.7.16. Reset the actual mode first.
+        CPSInteger(self.controller,@"_setCurrentMode:",0);
         [self.controller endAppearanceTransition];
         [self.controller.view removeFromSuperview];
         [self.controller removeFromParentViewController];
@@ -395,15 +402,29 @@ static void CPSStop(void);
         if(current==NSNotFound) return;
         strongSelf.hosts[current]=NSNull.null;
         [strongSelf.emptyButtons[current] setTitle:reason forState:UIControlStateNormal];
+        strongSelf.emptyButtons[current].enabled=YES;
         strongSelf.emptyButtons[current].hidden=NO;
     };
-    self.emptyButtons[pane].hidden=YES;
+    host.ready=^{
+        CPSSplitController *strongSelf=weakSelf; CPSSceneHost *opened=weakHost;
+        if(!strongSelf || !opened) return;
+        NSUInteger current=[strongSelf.hosts indexOfObjectIdenticalTo:opened];
+        if(current!=NSNotFound) {
+            strongSelf.emptyButtons[current].enabled=YES;
+            strongSelf.emptyButtons[current].hidden=YES;
+        }
+    };
+    [self.emptyButtons[pane] setTitle:@"Đang mở ứng dụng…" forState:UIControlStateNormal];
+    self.emptyButtons[pane].enabled=NO;
+    self.emptyButtons[pane].hidden=NO;
     @try {
         [host attachTo:self container:self.panes[pane]];
+        [self.panes[pane] bringSubviewToFront:self.emptyButtons[pane]];
         [host resizeTo:self.panes[pane].bounds.size];
         CPSWritePreference(pane==0?@"left":@"right",bid);
     } @catch(NSException *exception) {
         [host close]; self.hosts[pane]=NSNull.null;
+        self.emptyButtons[pane].enabled=YES;
         self.emptyButtons[pane].hidden=NO;
         [self.emptyButtons[pane] setTitle:exception.reason forState:UIControlStateNormal];
     }

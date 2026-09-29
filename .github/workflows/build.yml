@@ -32,8 +32,8 @@ jobs:
 
       - name: Build corrected independent CarPlay Split
         run: |
+          rm -f independent-split/packages/com.chuong.carplaysplit_*.deb packages/com.chuong.carplaysplit_*.deb
           bash independent-split/build.sh
-          rm -f packages/com.chuong.carplaysplit_0.2.0~alpha1_iphoneos-arm64.deb
           cp independent-split/packages/*.deb packages/
 
       - name: Set unique package version
