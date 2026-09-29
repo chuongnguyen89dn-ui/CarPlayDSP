@@ -491,7 +491,7 @@ void CPSInstallRuntime(void) {
         notify_register_dispatch(CPSChanged,&preferenceToken,dispatch_get_main_queue(),^(int token){
             CFPreferencesAppSynchronize((__bridge CFStringRef)CPSPreferences);
             if(!CPSEnabled()){CPSStop();return;}
-            if([CPSPref(@"perfEnabled") boolValue]) CPSPerfStart(); else CPSPerfStop();
+            if(CPSWindow && [CPSPref(@"perfEnabled") boolValue]) CPSPerfStart(); else CPSPerfStop();
         });
         for(NSString *name in @[@"CarPlayIsConnectedDidChange",UIScreenDidConnectNotification,UIScreenDidDisconnectNotification])
             [[NSNotificationCenter defaultCenter] addObserverForName:name object:nil queue:NSOperationQueue.mainQueue usingBlock:^(NSNotification *note){CPSConnectionChanged();}];

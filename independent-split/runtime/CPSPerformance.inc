@@ -19,8 +19,11 @@ static void CPSPerfWrite(NSDictionary *row) {
             NSFileManager *fm=NSFileManager.defaultManager;
             NSString *dir=[CPSPerfPath stringByDeletingLastPathComponent];
             [fm createDirectoryAtPath:dir withIntermediateDirectories:YES attributes:nil error:nil];
-            if([[fm attributesOfItemAtPath:CPSPerfPath error:nil] fileSize] > 4*1024*1024)
-                [fm moveItemAtPath:CPSPerfPath toPath:[CPSPerfPath stringByAppendingString:@".previous"] error:nil];
+            if([[fm attributesOfItemAtPath:CPSPerfPath error:nil] fileSize] > 4*1024*1024) {
+                NSString *previous=[CPSPerfPath stringByAppendingString:@".previous"];
+                [fm removeItemAtPath:previous error:nil];
+                [fm moveItemAtPath:CPSPerfPath toPath:previous error:nil];
+            }
             if(![fm fileExistsAtPath:CPSPerfPath])[fm createFileAtPath:CPSPerfPath contents:nil attributes:@{NSFilePosixPermissions:@0644}];
             NSFileHandle *file=[NSFileHandle fileHandleForWritingAtPath:CPSPerfPath];
             [file seekToEndOfFile];[file writeData:line];[file closeFile];
