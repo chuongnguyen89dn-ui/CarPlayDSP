@@ -1,5 +1,6 @@
 #import "CPSRuntime.h"
-#import "../CPSLayout.h"
+#import "../CPSLayouts.h"
+#import "../shared/CPSSettings.h"
 #import <dlfcn.h>
 #import <mach-o/dyld.h>
 #import <unistd.h>
@@ -35,6 +36,17 @@ static NSError *CPSError(NSString *message) {
 }
 static void CPSLog(NSString *message) {
     NSLog(@"CarPlaySplit %@",message);
+    if(![NSProcessInfo.processInfo.processName isEqual:@"SpringBoard"])return;
+    static dispatch_queue_t queue;static dispatch_once_t once;
+    dispatch_once(&once,^{queue=dispatch_queue_create("com.chuong.carplaysplit.log",DISPATCH_QUEUE_SERIAL);});
+    NSString *line=[NSString stringWithFormat:@"%@ %@\n",[NSDate date],message];
+    dispatch_async(queue,^{@autoreleasepool{@try{
+        NSString *dir=@"/var/mobile/Library/Logs",*path=[dir stringByAppendingPathComponent:@"CarPlaySplit-runtime.log"];
+        NSFileManager *fm=NSFileManager.defaultManager;[fm createDirectoryAtPath:dir withIntermediateDirectories:YES attributes:nil error:nil];
+        if([[fm attributesOfItemAtPath:path error:nil] fileSize]>2*1024*1024)[fm removeItemAtPath:path error:nil];
+        if(![fm fileExistsAtPath:path])[fm createFileAtPath:path contents:nil attributes:@{NSFilePosixPermissions:@0644}];
+        NSFileHandle *file=[NSFileHandle fileHandleForWritingAtPath:path];[file seekToEndOfFile];[file writeData:[line dataUsingEncoding:NSUTF8StringEncoding]];[file closeFile];
+    }@catch(NSException *e){NSLog(@"CarPlaySplit log write: %@",e.reason);}}});
 }
 static id CPSPreference(NSString *key) {
     return CFBridgingRelease(CFPreferencesCopyAppValue((__bridge CFStringRef)key,(__bridge CFStringRef)CPSPreferences));
@@ -260,228 +272,7 @@ static CPSSplitController *CPSRoot;
 - (void)dealloc { [self.timer invalidate]; }
 @end
 
-static void CPSStop(void);
-
-@interface CPSPicker : UITableViewController
-@property(nonatomic,copy) void (^selection)(NSString *bundleID);
-@property(nonatomic,strong) NSArray<NSDictionary *> *apps;
-@property(nonatomic,copy) NSString *excludedBundle;
-@end
-@implementation CPSPicker
-- (void)viewDidLoad {
-    [super viewDidLoad];
-    self.title=@"Chọn ứng dụng";
-    self.tableView.rowHeight=48;
-    self.tableView.backgroundColor=UIColor.systemBackgroundColor;
-    self.navigationItem.leftBarButtonItem=[[UIBarButtonItem alloc] initWithTitle:@"Đóng" style:UIBarButtonItemStylePlain target:self action:@selector(cancel)];
-    NSMutableArray *apps=[NSMutableArray array];
-    id controller=CPSGet(NSClassFromString(@"SBApplicationController"),@"sharedInstance");
-    for(id app in CPSGet(controller,@"allInstalledApplications")) {
-        NSString *bid=CPSGet(app,@"bundleIdentifier"), *title=CPSGet(app,@"displayName");
-        NSString *type=CPSGet(app,@"bundleType");
-        if(!bid.length || !title.length || [bid isEqualToString:self.excludedBundle] || [bid isEqualToString:CPSPreferences]) continue;
-        if(![type isEqualToString:@"User"] && ![@[@"com.apple.Maps",@"com.apple.mobilemusic",@"com.apple.mobilesafari",@"com.apple.podcasts"] containsObject:bid]) continue;
-        [apps addObject:@{@"id":bid,@"title":title}];
-    }
-    self.apps=[apps sortedArrayUsingComparator:^NSComparisonResult(NSDictionary *a,NSDictionary *b) {
-        return [a[@"title"] localizedCaseInsensitiveCompare:b[@"title"]];
-    }];
-}
-- (void)cancel { [self dismissViewControllerAnimated:YES completion:nil]; }
-- (NSInteger)tableView:(UITableView *)tableView numberOfRowsInSection:(NSInteger)section { return self.apps.count; }
-- (UITableViewCell *)tableView:(UITableView *)tableView cellForRowAtIndexPath:(NSIndexPath *)path {
-    UITableViewCell *cell=[tableView dequeueReusableCellWithIdentifier:@"app"];
-    if(!cell) cell=[[UITableViewCell alloc] initWithStyle:UITableViewCellStyleSubtitle reuseIdentifier:@"app"];
-    NSDictionary *app=self.apps[path.row];
-    cell.textLabel.text=app[@"title"]; cell.detailTextLabel.text=app[@"id"];
-    SEL icon=NSSelectorFromString(@"_applicationIconImageForBundleIdentifier:format:scale:");
-    if([UIImage respondsToSelector:icon]) cell.imageView.image=((id(*)(id,SEL,id,int,CGFloat))objc_msgSend)(UIImage.class,icon,app[@"id"],0,UIScreen.mainScreen.scale);
-    return cell;
-}
-- (void)tableView:(UITableView *)tableView didSelectRowAtIndexPath:(NSIndexPath *)path {
-    NSString *bid=self.apps[path.row][@"id"];
-    void (^selection)(NSString *)=self.selection;
-    [self dismissViewControllerAnimated:YES completion:^{ if(selection) selection(bid); }];
-}
-@end
-
-@interface CPSSplitController ()
-@property(nonatomic,strong) NSArray<UIView *> *panes;
-@property(nonatomic,strong) NSMutableArray *hosts;
-@property(nonatomic,strong) NSArray<UIButton *> *emptyButtons;
-@property(nonatomic,strong) UIView *divider;
-@property(nonatomic,strong) UIButton *handle;
-@property(nonatomic,strong) UIButton *swap;
-@property(nonatomic) CGFloat fraction;
-@property(nonatomic) BOOL shuttingDown;
-@end
-@implementation CPSSplitController
-- (UIInterfaceOrientationMask)supportedInterfaceOrientations { return UIInterfaceOrientationMaskAll; }
-- (BOOL)prefersStatusBarHidden { return YES; }
-- (void)viewDidLoad {
-    [super viewDidLoad];
-    self.view.backgroundColor=UIColor.blackColor;
-    self.overrideUserInterfaceStyle=UIUserInterfaceStyleDark;
-    NSNumber *saved=CPSPreference(@"fraction");
-    self.fraction=saved ? fmin(0.8,fmax(0.2,saved.doubleValue)) : 0.5;
-    self.hosts=[NSMutableArray arrayWithObjects:NSNull.null,NSNull.null,nil];
-    NSMutableArray *panes=[NSMutableArray array], *empty=[NSMutableArray array];
-    for(NSInteger i=0;i<2;i++) {
-        UIView *pane=[UIView new]; pane.clipsToBounds=YES; pane.backgroundColor=UIColor.blackColor;
-        [self.view addSubview:pane]; [panes addObject:pane];
-        UIButton *button=[UIButton buttonWithType:UIButtonTypeSystem];
-        [button setTitle:@"＋ Chọn ứng dụng" forState:UIControlStateNormal];
-        button.titleLabel.numberOfLines=0; button.titleLabel.textAlignment=NSTextAlignmentCenter;
-        button.titleLabel.font=[UIFont systemFontOfSize:17 weight:UIFontWeightMedium]; button.tag=i;
-        [button addTarget:self action:@selector(choose:) forControlEvents:UIControlEventTouchUpInside];
-        [pane addSubview:button]; [empty addObject:button];
-    }
-    self.panes=panes; self.emptyButtons=empty;
-    self.divider=[UIView new]; self.divider.backgroundColor=[UIColor colorWithWhite:0.12 alpha:1];
-    [self.view addSubview:self.divider];
-    self.handle=[UIButton buttonWithType:UIButtonTypeSystem];
-    [self.handle setTitle:@"⋮" forState:UIControlStateNormal];
-    self.handle.titleLabel.font=[UIFont boldSystemFontOfSize:30]; self.handle.tintColor=UIColor.whiteColor;
-    self.handle.backgroundColor=[UIColor colorWithWhite:0.16 alpha:0.95]; self.handle.layer.cornerRadius=12;
-    self.handle.accessibilityLabel=@"Tỷ lệ và chọn ứng dụng";
-    [self.handle addTarget:self action:@selector(menu) forControlEvents:UIControlEventTouchUpInside];
-    UIPanGestureRecognizer *drag=[[UIPanGestureRecognizer alloc] initWithTarget:self action:@selector(drag:)];
-    [self.handle addGestureRecognizer:drag]; [self.view addSubview:self.handle];
-    self.swap=[UIButton buttonWithType:UIButtonTypeSystem];
-    [self.swap setImage:[UIImage systemImageNamed:@"arrow.left.arrow.right"] forState:UIControlStateNormal];
-    self.swap.tintColor=UIColor.whiteColor; self.swap.backgroundColor=self.handle.backgroundColor;
-    self.swap.layer.cornerRadius=14; self.swap.accessibilityLabel=@"Đổi bên";
-    [self.swap addTarget:self action:@selector(swapPanes) forControlEvents:UIControlEventTouchUpInside];
-    [self.view addSubview:self.swap];
-    for(NSInteger i=0;i<2;i++) {
-        NSString *bid=CPSPreference(i==0?@"left":@"right");
-        if([bid isKindOfClass:NSString.class] && bid.length) [self openBundle:bid pane:i];
-    }
-}
-- (void)viewDidLayoutSubviews {
-    [super viewDidLayoutSubviews];
-    if(self.shuttingDown) return;
-    CPSLayoutInput input={self.view.bounds,0,4,self.fraction,YES};
-    CPSLayout layout=CPSComputeLayout(input,YES);
-    if(!layout.valid) return;
-    self.panes[0].frame=layout.firstPane; self.panes[1].frame=layout.secondPane; self.divider.frame=layout.divider;
-    CGFloat x=CGRectGetMidX(layout.divider),y=CGRectGetMidY(self.view.bounds);
-    self.handle.frame=CGRectMake(x-16,y-24,32,48);
-    self.swap.frame=CGRectMake(x-16,y-63,32,32);
-    for(NSInteger i=0;i<2;i++) {
-        self.emptyButtons[i].frame=CGRectInset(self.panes[i].bounds,20,20);
-        if(self.hosts[i]!=NSNull.null) [(CPSSceneHost *)self.hosts[i] resizeTo:self.panes[i].bounds.size];
-    }
-}
-- (void)choose:(UIButton *)button { [self pickerForPane:button.tag]; }
-- (void)pickerForPane:(NSInteger)pane {
-    if(self.presentedViewController) return;
-    CPSPicker *picker=[CPSPicker new];
-    id other=self.hosts[1-pane];
-    if(other!=NSNull.null) picker.excludedBundle=[other bundleID];
-    __weak typeof(self) weakSelf=self;
-    picker.selection=^(NSString *bid) { [weakSelf openBundle:bid pane:pane]; };
-    UINavigationController *nav=[[UINavigationController alloc] initWithRootViewController:picker];
-    nav.modalPresentationStyle=UIModalPresentationFullScreen;
-    [self presentViewController:nav animated:YES completion:nil];
-}
-- (void)openBundle:(NSString *)bid pane:(NSInteger)pane {
-    if(self.shuttingDown) return;
-    id current=self.hosts[pane];
-    if(current!=NSNull.null && [[current bundleID] isEqualToString:bid]) return;
-    id other=self.hosts[1-pane];
-    if(other!=NSNull.null && [[other bundleID] isEqualToString:bid]) return;
-    NSError *error=nil;
-    CPSSceneHost *host=[[CPSSceneHost alloc] initWithBundleID:bid error:&error];
-    if(!host) { [self.emptyButtons[pane] setTitle:error.localizedDescription forState:UIControlStateNormal]; return; }
-    id previous=self.hosts[pane];
-    if(previous!=NSNull.null) [previous close];
-    self.hosts[pane]=host;
-    __weak typeof(self) weakSelf=self;
-    __weak CPSSceneHost *weakHost=host;
-    host.failure=^(NSString *reason) {
-        CPSSplitController *strongSelf=weakSelf; CPSSceneHost *failed=weakHost;
-        if(!strongSelf || !failed) return;
-        NSUInteger current=[strongSelf.hosts indexOfObjectIdenticalTo:failed];
-        if(current==NSNotFound) return;
-        strongSelf.hosts[current]=NSNull.null;
-        [strongSelf.emptyButtons[current] setTitle:reason forState:UIControlStateNormal];
-        strongSelf.emptyButtons[current].enabled=YES;
-        strongSelf.emptyButtons[current].hidden=NO;
-    };
-    host.ready=^{
-        CPSSplitController *strongSelf=weakSelf; CPSSceneHost *opened=weakHost;
-        if(!strongSelf || !opened) return;
-        NSUInteger current=[strongSelf.hosts indexOfObjectIdenticalTo:opened];
-        if(current!=NSNotFound) {
-            strongSelf.emptyButtons[current].enabled=YES;
-            strongSelf.emptyButtons[current].hidden=YES;
-        }
-    };
-    [self.emptyButtons[pane] setTitle:@"Đang mở ứng dụng…" forState:UIControlStateNormal];
-    self.emptyButtons[pane].enabled=NO;
-    self.emptyButtons[pane].hidden=NO;
-    @try {
-        [host attachTo:self container:self.panes[pane]];
-        [self.panes[pane] bringSubviewToFront:self.emptyButtons[pane]];
-        [host resizeTo:self.panes[pane].bounds.size];
-        CPSWritePreference(pane==0?@"left":@"right",bid);
-    } @catch(NSException *exception) {
-        [host close]; self.hosts[pane]=NSNull.null;
-        self.emptyButtons[pane].enabled=YES;
-        self.emptyButtons[pane].hidden=NO;
-        [self.emptyButtons[pane] setTitle:exception.reason forState:UIControlStateNormal];
-    }
-}
-- (void)menu {
-    if(self.presentedViewController) return;
-    UIAlertController *menu=[UIAlertController alertControllerWithTitle:@"CarPlay Split" message:nil preferredStyle:UIAlertControllerStyleActionSheet];
-    [menu addAction:[UIAlertAction actionWithTitle:@"Ứng dụng bên trái" style:UIAlertActionStyleDefault handler:^(UIAlertAction *a) {
-        [self dismissViewControllerAnimated:YES completion:^{ [self pickerForPane:0]; }];
-    }]];
-    [menu addAction:[UIAlertAction actionWithTitle:@"Ứng dụng bên phải" style:UIAlertActionStyleDefault handler:^(UIAlertAction *a) {
-        [self dismissViewControllerAnimated:YES completion:^{ [self pickerForPane:1]; }];
-    }]];
-    [menu addAction:[UIAlertAction actionWithTitle:@"Tỷ lệ 50/50" style:UIAlertActionStyleDefault handler:^(UIAlertAction *a) { self.fraction=0.5; [self.view setNeedsLayout]; CPSWritePreference(@"fraction",@(self.fraction)); }]];
-    [menu addAction:[UIAlertAction actionWithTitle:@"Thoát chia đôi" style:UIAlertActionStyleDestructive handler:^(UIAlertAction *a) { CPSStop(); }]];
-    [menu addAction:[UIAlertAction actionWithTitle:@"Đóng" style:UIAlertActionStyleCancel handler:nil]];
-    menu.popoverPresentationController.sourceView=self.handle;
-    menu.popoverPresentationController.sourceRect=self.handle.bounds;
-    [self presentViewController:menu animated:YES completion:nil];
-}
-- (void)drag:(UIPanGestureRecognizer *)gesture {
-    CGFloat width=self.view.bounds.size.width;
-    if(width<=4) return;
-    CGFloat raw=[gesture locationInView:self.view].x/width;
-    self.fraction=fmax(0.2,fmin(0.8,raw));
-    [self.view setNeedsLayout]; [self.view layoutIfNeeded];
-    if(gesture.state==UIGestureRecognizerStateEnded) {
-        CPSWritePreference(@"fraction",@(self.fraction));
-        if(raw<0.04 || raw>0.96) CPSStop();
-    }
-}
-- (void)swapPanes {
-    if(self.shuttingDown) return;
-    [self.hosts exchangeObjectAtIndex:0 withObjectAtIndex:1];
-    for(NSInteger i=0;i<2;i++) {
-        id host=self.hosts[i];
-        self.emptyButtons[i].hidden=host!=NSNull.null;
-        if(host!=NSNull.null) {
-            CPSSceneHost *sceneHost=host;
-            [self.panes[i] addSubview:sceneHost.controller.view];
-            sceneHost.container=self.panes[i];
-            CPSWritePreference(i==0?@"left":@"right",sceneHost.bundleID);
-        } else CPSWritePreference(i==0?@"left":@"right",nil);
-    }
-    [self.view setNeedsLayout]; [self.view layoutIfNeeded];
-}
-- (void)shutdown {
-    if(self.shuttingDown) return;
-    self.shuttingDown=YES;
-    for(id host in self.hosts) if(host!=NSNull.null) [host close];
-    [self.hosts removeAllObjects];
-}
-@end
+#include "CPSInterface.inc"
 
 static id CPSCarDisplay(void) {
     id external=CPSGet(NSClassFromString(@"AVExternalDevice"),@"currentCarPlayExternalDevice");
@@ -500,6 +291,7 @@ static void CPSStop(void) {
     CPSLog(@"split dismissed; original Dashboard exposed");
 }
 static void CPSStart(void) {
+    if(!CPSEnabled())return;
     if(CPSWindow) { notify_post("com.chuong.carplaysplit.started"); return; }
     @try {
         id display=CPSCarDisplay();
@@ -517,9 +309,25 @@ static void CPSStart(void) {
         window.backgroundColor=UIColor.blackColor;
         window.rootViewController=CPSRoot;
         window.hidden=NO;
+        CPSWritePreference(@"displayInfo",[NSString stringWithFormat:@"%@ pt\nscale %.2f\n%@",NSStringFromCGRect(window.bounds),window.screen.scale,UIDevice.currentDevice.systemVersion]);
         notify_post("com.chuong.carplaysplit.started");
         CPSLog([NSString stringWithFormat:@"split window visible bounds=%@",NSStringFromCGRect(window.bounds)]);
     } @catch(NSException *exception) { CPSLog(exception.reason); CPSStop(); }
+}
+
+static BOOL CPSConnected;
+static NSUInteger CPSConnectionGeneration;
+static void CPSConnectionChanged(void) {
+    BOOL connected=CPSCarDisplay()!=nil;if(connected==CPSConnected)return;
+    CPSConnected=connected;NSUInteger generation=++CPSConnectionGeneration;
+    CPSLog(connected?@"CarPlay connected":@"CarPlay disconnected");
+    if(connected){if(CPSEnabled()&&[CPSPref(@"autoStart")boolValue])CPSStart();return;}
+    NSArray *managed=CPSManaged.allObjects;CPSStop();
+    if(![CPSPref(@"closeDisconnect")boolValue])return;
+    dispatch_after(dispatch_time(DISPATCH_TIME_NOW,12*NSEC_PER_SEC),dispatch_get_main_queue(),^{
+        if(generation!=CPSConnectionGeneration||CPSCarDisplay()||![CPSPref(@"closeDisconnect")boolValue])return;
+        for(NSString *bid in managed)CPSTerminate(bid,nil,^(NSString *status){CPSLog([NSString stringWithFormat:@"disconnect cleanup %@: %@",bid,status]);});
+    });
 }
 
 static void (*CPSOriginalUpdate)(id,SEL,id,id,id);
@@ -654,6 +462,10 @@ void CPSInstallRuntime(void) {
     NSString *process=NSProcessInfo.processInfo.processName;
     if([process isEqualToString:@"SpringBoard"]) {
         CPSHostedBundles=[NSMutableSet set]; CPSHostedScenes=[NSMutableSet set];
+        CPSManaged=[NSMutableSet set];CPSTerminating=[NSMutableSet set];
+        dlopen("/System/Library/PrivateFrameworks/RunningBoardServices.framework/RunningBoardServices",RTLD_LAZY);
+        dlopen("/System/Library/PrivateFrameworks/BackBoardServices.framework/BackBoardServices",RTLD_LAZY);
+        CPSStateMonitor=[NSClassFromString(@"BKSApplicationStateMonitor") new];
         CPSSceneGeometry=[NSMapTable strongToStrongObjectsMapTable];
         CPSControllerGeometry=[NSMapTable weakToStrongObjectsMapTable];
         CPSHandleOwners=[NSMapTable strongToWeakObjectsMapTable];
@@ -666,8 +478,18 @@ void CPSInstallRuntime(void) {
         static int startToken,stopToken;
         notify_register_dispatch(CPSStartNotification,&startToken,dispatch_get_main_queue(),^(int token) { CPSStart(); });
         notify_register_dispatch(CPSStopNotification,&stopToken,dispatch_get_main_queue(),^(int token) { CPSStop(); });
-        [[NSNotificationCenter defaultCenter] addObserverForName:@"CarPlayIsConnectedDidChange" object:nil queue:NSOperationQueue.mainQueue usingBlock:^(NSNotification *note) { if(!CPSCarDisplay()) CPSStop(); }];
-        [[NSNotificationCenter defaultCenter] addObserverForName:UIScreenDidDisconnectNotification object:nil queue:NSOperationQueue.mainQueue usingBlock:^(NSNotification *note) { if(!CPSCarDisplay()) CPSStop(); }];
+        static int preferenceToken;
+        notify_register_dispatch(CPSChanged,&preferenceToken,dispatch_get_main_queue(),^(int token){
+            CFPreferencesAppSynchronize((__bridge CFStringRef)CPSPreferences);
+            if(!CPSEnabled()){CPSStop();return;}
+            NSArray *allowed=CPSPref(@"allowedApps");
+            if(allowed)for(NSString *bid in [CPSHostedBundles copy])if(![allowed containsObject:bid])[CPSRoot detachBundle:bid];
+        });
+        for(NSString *name in @[@"CarPlayIsConnectedDidChange",UIScreenDidConnectNotification,UIScreenDidDisconnectNotification])
+            [[NSNotificationCenter defaultCenter] addObserverForName:name object:nil queue:NSOperationQueue.mainQueue usingBlock:^(NSNotification *note){CPSConnectionChanged();}];
+        // Some heads advertise their display after UIScreen notification. Poll only connection identity.
+        [NSTimer scheduledTimerWithTimeInterval:2 repeats:YES block:^(NSTimer *t){CPSConnectionChanged();}];
+        CPSConnectionChanged();
     } else if([process isEqualToString:@"CarPlay"]) {
         CPSInstallCarLauncher();
         CPSGestureTarget=[CPSHomeGestureTarget new];

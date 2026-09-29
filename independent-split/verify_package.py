@@ -60,11 +60,12 @@ base = 'var/jb/'
 app = base + 'Applications/CarPlaySplit.app/'
 dylib = base + 'Library/MobileSubstrate/DynamicLibraries/CarPlaySplit.dylib'
 assert not any('DuoDash' in name or 'Airaw' in name for name in files), 'Reference payload leaked into package'
-for name in [app + 'CarPlaySplit', dylib]:
+prefs = base + 'Library/PreferenceBundles/CarPlaySplitPrefs.bundle/'
+for name in [app + 'CarPlaySplit', dylib, prefs + 'CarPlaySplitPrefs']:
     assert name in files, f'Missing binary: {name}'
     assert files[name][:4] in (b'\xcf\xfa\xed\xfe', b'\xca\xfe\xba\xbe', b'\xca\xfe\xba\xbf'), f'Not Mach-O: {name}'
     assert len(files[name]) > 4096, f'Truncated binary: {name}'
-    inspect_macho(files[name], 2 if name.endswith('/CarPlaySplit') else 6)
+    inspect_macho(files[name], 2 if name.endswith('/CarPlaySplit') else 8 if name.endswith('/CarPlaySplitPrefs') else 6)
 info = plistlib.loads(files[app + 'Info.plist'])
 assert info['CFBundleIdentifier'] == 'com.chuong.carplaysplit'
 assert info['CFBundleExecutable'] == 'CarPlaySplit'
@@ -77,3 +78,10 @@ print(f'Package inspected: {len(files)} payload files, app and tweak present, no
 filter_plist = plistlib.loads(files[base + 'Library/MobileSubstrate/DynamicLibraries/CarPlaySplit.plist'])
 assert set(filter_plist['Filter']['Executables']) == {'SpringBoard', 'CarPlay'}
 print('Verified signed arm64 Mach-O slices, iOS deployment target and system-only dependencies.')
+
+prefs_info=plistlib.loads(files[prefs+'Info.plist'])
+assert prefs_info['NSPrincipalClass']=='CPSPreferencesController'
+loader=plistlib.loads(files[base+'Library/PreferenceLoader/Preferences/CarPlaySplitPrefs.plist'])
+assert loader['entry']['bundle']=='CarPlaySplitPrefs'
+assert 'preferenceloader' in control
+print('Verified Settings bundle, loader entry, dependency and signed bundle slices.')
