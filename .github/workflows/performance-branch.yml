@@ -1,0 +1,24 @@
+name: CarPlay Split performance branch verification
+on:
+  push:
+    branches: [feature/performance-baseline]
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  build-only:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install iOS SDK and packaging tools
+        run: |
+          brew install ldid xz dpkg
+          git clone --recursive https://github.com/theos/theos.git "$HOME/theos"
+          rm -rf "$HOME/theos/sdks"
+          git clone --depth=1 https://github.com/theos/sdks.git "$HOME/theos/sdks"
+      - name: Build independent Split; do not publish
+        run: bash independent-split/build.sh
+      - uses: actions/upload-artifact@v4
+        with:
+          name: CarPlaySplit-performance-test-only
+          path: independent-split/packages/com.chuong.carplaysplit_*.deb
