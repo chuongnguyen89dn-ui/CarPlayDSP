@@ -132,6 +132,7 @@ static NSArray *CPSAvailableApps(void) {
 }
 - (void)viewDidLayoutSubviews {
  [super viewDidLayoutSubviews];if(self.shuttingDown)return;
+ CPSPerfCount(@"layout_passes");
  CGRect bounds=self.view.bounds;CPSFrames f=CPSFramesMake(bounds,(int)self.layoutKind,self.fraction,self.secondary,(int)self.maximized);
  for(int i=0;i<3;i++){
   CGRect frame=f.panes[i];self.panes[i].frame=frame;self.panes[i].hidden=CGRectIsEmpty(frame);
@@ -171,6 +172,7 @@ static NSArray *CPSAvailableApps(void) {
 }
 - (void)message:(NSString *)text{self.statusLabel.text=text;self.statusLabel.hidden=NO;__weak typeof(self) weak=self;dispatch_after(dispatch_time(DISPATCH_TIME_NOW,4*NSEC_PER_SEC),dispatch_get_main_queue(),^{if([weak.statusLabel.text isEqual:text])weak.statusLabel.hidden=YES;});}
 - (void)openBundle:(NSString *)bid pane:(NSInteger)pane {
+ CPSPerfMark(@"open_app",@{@"pane":@(pane)});
  if(self.shuttingDown||pane<0||pane>2||!CPSEnabled()||[CPSTerminating containsObject:bid])return;
  for(id h in self.hosts)if(h!=NSNull.null&&[[h bundleID]isEqual:bid])return;
  NSError *error=nil;CPSSceneHost *host=[[CPSSceneHost alloc]initWithBundleID:bid error:&error];if(!host){[self message:error.localizedDescription];return;}
@@ -189,11 +191,14 @@ static NSArray *CPSAvailableApps(void) {
  for(int i=1;i<=8;i++){CPSLayoutIcon *b=[CPSLayoutIcon buttonWithType:UIButtonTypeCustom];b.kind=i;b.tag=i;b.accessibilityLabel=names[i-1];b.backgroundColor=i==self.layoutKind?[UIColor.whiteColor colorWithAlphaComponent:.15]:UIColor.clearColor;[b addTarget:self action:@selector(setLayout:) forControlEvents:UIControlEventTouchUpInside];[self.panel.contentView addSubview:b];}[self armHide];[self.view setNeedsLayout];
 }
 - (void)setLayout:(UIButton *)b {
+ CPSPerfMark(@"layout_change",@{@"layout":@(b.tag)});
  self.layoutKind=b.tag;self.maximized=-1;self.fraction=b.tag==4?1./3:.5;self.secondary=b.tag==4?2./3:.5;NSInteger count=b.tag==1?1:(b.tag<=3?2:3);
  for(NSInteger i=count;i<3;i++)if(self.hosts[i]!=NSNull.null){[self.hosts[i]close];self.hosts[i]=NSNull.null;self.emptyButtons[i].hidden=NO;self.emptyButtons[i].enabled=YES;[self.emptyButtons[i]setTitle:CPST(@"＋ Chọn ứng dụng",@"＋ Choose app") forState:0];}
  [self saveLayout];[self dismissPanel];[self armHide];[self.view setNeedsLayout];
 }
 - (void)drag:(UIPanGestureRecognizer *)g {
+ if(g.state==UIGestureRecognizerStateBegan) CPSPerfMark(@"drag_begin",nil);
+ if(g.state==UIGestureRecognizerStateEnded || g.state==UIGestureRecognizerStateCancelled) CPSPerfMark(@"drag_end",nil);
  [self.hideTimer invalidate];if(g.state==UIGestureRecognizerStateBegan){[self dismissPanel];self.toolbar.hidden=YES;}
  CPSFrames f=CPSFramesMake(self.view.bounds,(int)self.layoutKind,self.fraction,self.secondary,-1);int n=(int)g.view.tag;if(n>=f.boundaryCount)return;CGPoint p=[g locationInView:self.view];BOOL vertical=f.vertical[n];CGFloat length=vertical?self.view.bounds.size.width:self.view.bounds.size.height;if(length<=0)return;double raw=CPSClamp((vertical?p.x:p.y)/length,0,1),v=raw;
  if(n==0){if(self.layoutKind==4)v=MIN(v,self.secondary);self.fraction=v;}else {if(self.layoutKind==4)v=MAX(v,self.fraction);self.secondary=v;}
@@ -204,6 +209,7 @@ static NSArray *CPSAvailableApps(void) {
  [self.view setNeedsLayout];[self.view layoutIfNeeded];
 }
 - (void)swapPanes {
+ CPSPerfMark(@"swap",nil);
  NSInteger count=self.layoutKind==1?1:(self.layoutKind<=3?2:3);if(count<2)return;
  id first=self.hosts[0];for(NSInteger i=0;i<count-1;i++)self.hosts[i]=self.hosts[i+1];self.hosts[count-1]=first;
  for(int i=0;i<count;i++){id h=self.hosts[i];self.emptyButtons[i].hidden=h!=NSNull.null;self.emptyButtons[i].enabled=YES;[self.emptyButtons[i]setTitle:CPST(@"＋ Chọn ứng dụng",@"＋ Choose app") forState:0];if(h!=NSNull.null){CPSSceneHost *host=h;[self.panes[i]addSubview:host.controller.view];host.container=self.panes[i];}CPSWritePreference(@[@"left",@"right",@"third"][i],h==NSNull.null?nil:[h bundleID]);}
@@ -220,6 +226,7 @@ static NSArray *CPSAvailableApps(void) {
 }
 - (void)exitSplit{CPSStop();}
 - (void)shutdown {
+ CPSPerfMark(@"shutdown",nil);
  if(self.shuttingDown)return;self.shuttingDown=YES;[self.hideTimer invalidate];[self dismissPanel];for(id host in self.hosts)if(host!=NSNull.null)[host close];[self.hosts removeAllObjects];
 }
 @end

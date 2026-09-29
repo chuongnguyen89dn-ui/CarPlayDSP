@@ -4,6 +4,10 @@
 #import <dlfcn.h>
 #import <mach-o/dyld.h>
 #import <unistd.h>
+#import <mach/mach.h>
+#import <mach/task_info.h>
+#import <QuartzCore/QuartzCore.h>
+#import "CPSPerformance.inc"
 
 // Private entry points are checked before use. The evidence for each group is
 // recorded in IMPLEMENTATION_EVIDENCE.md. No reference dylib is loaded here.
@@ -184,6 +188,8 @@ static CPSSplitController *CPSRoot;
 }
 - (void)resizeTo:(CGSize)size {
     if(self.closed || size.width<=0 || size.height<=0 || !isfinite(size.width) || !isfinite(size.height)) return;
+    if(CGSizeEqualToSize(self.requestedSize,size)) { CPSPerfCount(@"resize_skipped"); return; }
+    CPSPerfCount(@"resize_applied");
     self.requestedSize=size;
     // Render at twice the pane's logical size, then scale uniformly. This keeps
     // text usable without stretching either axis and preserves UIKit hit testing.
@@ -227,7 +233,7 @@ static CPSSplitController *CPSRoot;
     }
     ((void(*)(id,SEL,id,id,id))objc_msgSend)(self.scene,update,settings,nil,nil);
     self.appliedSize=self.requestedSize;
-    CPSLog([NSString stringWithFormat:@"pane resized bundle=%@ display=%@ render=%@",self.bundleID,NSStringFromCGSize(self.requestedSize),NSStringFromCGSize(logical)]);
+    CPSPerfCount(@"scene_updates");
 }
 - (void)close {
     if(self.closed) return;
@@ -284,6 +290,8 @@ static id CPSCarDisplay(void) {
     return nil;
 }
 static void CPSStop(void) {
+    CPSPerfMark(@"split_stop",nil);
+    CPSPerfStop();
     [CPSRoot shutdown];
     CPSWindow.hidden=YES; CPSWindow.rootViewController=nil;
     CPSRoot=nil; CPSWindow=nil;
@@ -309,6 +317,7 @@ static void CPSStart(void) {
         window.backgroundColor=UIColor.blackColor;
         window.rootViewController=CPSRoot;
         window.hidden=NO;
+        CPSPerfStart(); CPSPerfMark(@"split_start",@{@"bounds":NSStringFromCGRect(window.bounds)});
         CPSWritePreference(@"displayInfo",[NSString stringWithFormat:@"%@ pt\nscale %.2f\n%@",NSStringFromCGRect(window.bounds),window.screen.scale,UIDevice.currentDevice.systemVersion]);
         notify_post("com.chuong.carplaysplit.started");
         CPSLog([NSString stringWithFormat:@"split window visible bounds=%@",NSStringFromCGRect(window.bounds)]);
@@ -482,6 +491,7 @@ void CPSInstallRuntime(void) {
         notify_register_dispatch(CPSChanged,&preferenceToken,dispatch_get_main_queue(),^(int token){
             CFPreferencesAppSynchronize((__bridge CFStringRef)CPSPreferences);
             if(!CPSEnabled()){CPSStop();return;}
+            if(CPSWindow && [CPSPref(@"perfEnabled") boolValue]) CPSPerfStart(); else CPSPerfStop();
         });
         for(NSString *name in @[@"CarPlayIsConnectedDidChange",UIScreenDidConnectNotification,UIScreenDidDisconnectNotification])
             [[NSNotificationCenter defaultCenter] addObserverForName:name object:nil queue:NSOperationQueue.mainQueue usingBlock:^(NSNotification *note){CPSConnectionChanged();}];

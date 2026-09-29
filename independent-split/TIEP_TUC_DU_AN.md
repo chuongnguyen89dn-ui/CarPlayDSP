@@ -96,3 +96,9 @@ Tài liệu Apple đã đối chiếu:
 ## Để sau theo yêu cầu
 
 Điều tra hụt đáy trong bản DuoDash tham khảo; không ghép việc này vào alpha4.
+
+## Nhánh thử nghiệm hiệu năng — chưa phát hành
+
+`feature/performance-baseline`: đo CPU và resident memory của **toàn bộ SpringBoard** (không được gọi là CPU riêng của Split), trạng thái nhiệt, số lần layout/resize/scene update; ghi mẫu 1 giây khi Split hoạt động và bật tùy chọn. Dữ liệu JSONL xuất từ Settings, không cần NewTerm. Đếm resize bỏ qua trước khi dùng profile; không thay đổi scale, foreground của app, FPS hoặc audio. Nhánh chỉ build/test, không triển khai Sileo. Chờ số liệu máy thật và kiểm tra crash trước phát hành.
+
+Build thử nghiệm gắn phiên bản `0.3.0~alpha5test1` để phân biệt với bản Sileo `0.3.0~alpha4`.
