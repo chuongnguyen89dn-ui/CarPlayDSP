@@ -25,7 +25,7 @@
  if(p.section==0){c.textLabel.text=p.row==0?CPST(@"Bật App Bridge",@"Enable App Bridge"):CPST(@"Chọn ứng dụng",@"Choose apps");if(p.row==0)key=@"enabled";}
  if(p.section==1){c.textLabel.text=@[CPST(@"Tự mở khi kết nối",@"Auto start"),CPST(@"Đóng app cũ khi đổi khung",@"Close replaced apps"),CPST(@"Đóng app khi ngắt CarPlay",@"Close on disconnect")][p.row];key=@[@"autoStart",@"closeReplaced",@"closeDisconnect"][p.row];}
  if(p.section==2){c.textLabel.text=p.row==0?CPST(@"Ngôn ngữ",@"Language"):CPST(@"Cỡ chữ của Split",@"Split text size");c.detailTextLabel.text=p.row==0?CPST(@"Tiếng Việt",@"English"):@[CPST(@"Nhỏ",@"Small"),CPST(@"Vừa",@"Medium"),CPST(@"Lớn",@"Large")][MIN(2,MAX(0,[CPSPref(@"textSize") integerValue]))];}
- if(p.section==3){c.textLabel.text=@[CPST(@"Thông tin màn hình xe",@"Car display information"),CPST(@"Xuất log",@"Export logs"),CPST(@"Phiên bản",@"Version")][p.row];if(p.row==2)c.detailTextLabel.text=@"0.3.0~alpha2";}
+ if(p.section==3){c.textLabel.text=@[CPST(@"Thông tin màn hình xe",@"Car display information"),CPST(@"Xuất log",@"Export logs"),CPST(@"Phiên bản",@"Version")][p.row];if(p.row==2)c.detailTextLabel.text=@"0.3.0~alpha3";}
  if(key){UISwitch *s=[UISwitch new];s.accessibilityIdentifier=key;s.on=[key isEqual:@"enabled"]?CPSEnabled():[CPSPref(key) boolValue];[s addTarget:self action:@selector(toggle:) forControlEvents:UIControlEventValueChanged];c.accessoryView=s;c.selectionStyle=UITableViewCellSelectionStyleNone;}
  else if(!(p.section==3&&p.row==2))c.accessoryType=UITableViewCellAccessoryDisclosureIndicator;return c;
 }

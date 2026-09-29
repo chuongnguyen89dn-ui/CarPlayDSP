@@ -85,3 +85,13 @@ loader=plistlib.loads(files[base+'Library/PreferenceLoader/Preferences/CarPlaySp
 assert loader['entry']['bundle']=='CarPlaySplitPrefs'
 assert 'preferenceloader' in control
 print('Verified Settings bundle, loader entry, dependency and signed bundle slices.')
+
+assert info.get('SBAppTags') == ['hidden'], 'iPhone Home Screen hiding tag missing'
+assert info['CFBundleIcons']['CFBundlePrimaryIcon']['CFBundleIconFiles'], 'CarPlay icon artwork declaration removed'
+assert loader['entry']['icon'] == '/'+prefs+'Icon.png', 'Settings icon path does not match packaged resource'
+for scale in (1,2,3):
+    suffix='' if scale==1 else f'@{scale}x'
+    png=files[prefs+f'Icon{suffix}.png']
+    assert png[:8]==b'\x89PNG\r\n\x1a\n'
+    assert struct.unpack_from('>II',png,16)==(29*scale,29*scale), 'Wrong Settings icon dimensions'
+print('Verified hidden Home Screen registration, retained CarPlay artwork and Settings icons at 1x/2x/3x.')

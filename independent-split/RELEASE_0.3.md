@@ -1,4 +1,4 @@
-# CarPlay Split 0.3.0 alpha2
+# CarPlay Split 0.3.0 alpha3
 
 Independent implementation; no DuoDash, Airaw or Cauxo binary/source payload is included.
 The bottom-gap investigation for the reference DuoDash installation is deferred.
@@ -14,7 +14,7 @@ The bottom-gap investigation for the reference DuoDash installation is deferred.
   No central dimming layer, app-list toolbar item, or CarPlay Settings item.
 - Top-corner pane activators show a compact app picker in that pane. App content
   taps retain their original meaning. Layout selection shows eight miniature shapes.
-- iPhone Settings preference bundle and optional phone settings app: App Bridge
+- iPhone Settings preference bundle (phone launcher hidden): App Bridge
   toggle/allowlist, auto-start, close replaced apps, close on disconnect, language,
   Split text size, last display info and log export. Layout and hide-delay knobs
   are deliberately absent from phone settings.
@@ -52,3 +52,26 @@ load-command/section overlap, preference loader metadata and dependencies.
 Passing these checks is not physical-device runtime validation. CarPlay gestures,
 scene lifetime, preference loading and app termination still require vehicle/device
 observations before this can be called stable.
+
+## 2026-09-29 — alpha3: phone visibility and Settings icon
+
+User confirmed installing alpha2: an unnecessary phone launcher remained, and the
+Settings row showed its name without an icon. Inspection found no SBAppTags in
+app/Info.plist, no icon key in preferences/Loader.plist, and no preference icon
+resources in the package.
+
+Added SBAppTags=[hidden] to the installed app registration. The app bundle,
+bundle identifier, app artwork and explicit CARApplication library registration
+are retained so CarPlay's entry point is not uninstalled. Existing postinst runs
+uicache -p against this bundle to refresh registration on upgrade. No scene host,
+layout or app-termination logic was changed.
+
+PreferenceLoader now points to an absolute rootless bundle icon path. The build
+reuses the existing Split logo at 29/58/87 px for Settings 1x/2x/3x images.
+Package verification enforces the visibility metadata, icon reference and actual
+PNG dimensions. These checks do not prove appearance on the user's device.
+
+Mechanism references inspected: opa334/AltList LSApplicationProxy+AltList.m
+(atl_isHidden checks SBAppTags and application-record tags), and rpetrich/Powercuff
+PreferenceLoader entry (absolute icon path). App hiding must still be confirmed
+on the installed iOS build, including retention of the CarPlay launcher.

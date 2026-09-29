@@ -27,6 +27,25 @@ PREF="$STAGING/var/jb/Library/PreferenceBundles/CarPlaySplitPrefs.bundle"
 mkdir -p "$PREF" "$STAGING/var/jb/Library/PreferenceLoader/Preferences"
 "${CC[@]}" "${COMMON[@]}" -bundle -Wl,-undefined,dynamic_lookup preferences/Entry.m shared/CPSSettings.m -o "$PREF/CarPlaySplitPrefs"
 cp preferences/Info.plist "$PREF/"
+# PreferenceLoader resolves the same artwork at Settings row sizes, not app sizes.
+if [[ "$(uname -s)" == Darwin ]]; then
+    sips -z 29 29 app/AppIcon60x60@2x.png --out "$PREF/Icon.png" >/dev/null
+    sips -z 58 58 app/AppIcon60x60@2x.png --out "$PREF/Icon@2x.png" >/dev/null
+    sips -z 87 87 app/AppIcon60x60@3x.png --out "$PREF/Icon@3x.png" >/dev/null
+else
+    python3 - "$PREF" <<'PYICON'
+import sys
+from pathlib import Path
+from PIL import Image
+out = Path(sys.argv[1])
+for scale in (1, 2, 3):
+    source = 'app/AppIcon60x60@3x.png' if scale == 3 else 'app/AppIcon60x60@2x.png'
+    suffix = '' if scale == 1 else f'@{scale}x'
+    with Image.open(source) as image:
+        image.resize((29 * scale, 29 * scale), Image.Resampling.LANCZOS).save(out / f'Icon{suffix}.png')
+PYICON
+fi
+chmod 0644 "$PREF/"*.png
 cp preferences/Loader.plist "$STAGING/var/jb/Library/PreferenceLoader/Preferences/CarPlaySplitPrefs.plist"
 "$LDID_BIN" -S "$PREF/CarPlaySplitPrefs"
 chmod 0755 "$PREF/CarPlaySplitPrefs"
