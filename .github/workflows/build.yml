@@ -30,6 +30,12 @@ jobs:
           echo "THEOS=$HOME/theos" >> "$GITHUB_ENV"
           test -n "$(find "$HOME/theos/sdks" -maxdepth 1 -type d -name '*.sdk' -print -quit)"
 
+      - name: Build corrected independent CarPlay Split
+        run: |
+          bash independent-split/build.sh
+          rm -f packages/com.chuong.carplaysplit_0.2.0~alpha1_iphoneos-arm64.deb
+          cp independent-split/packages/*.deb packages/
+
       - name: Set unique package version
         run: |
           sed -i '' "s/^Version:.*/Version: 0.0.${GITHUB_RUN_NUMBER}/" control
