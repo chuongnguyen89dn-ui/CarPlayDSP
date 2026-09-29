@@ -1,4 +1,4 @@
-# CarPlay Split 0.3.0 alpha3
+# CarPlay Split 0.3.0 alpha4
 
 Independent implementation; no DuoDash, Airaw or Cauxo binary/source payload is included.
 The bottom-gap investigation for the reference DuoDash installation is deferred.
@@ -14,8 +14,8 @@ The bottom-gap investigation for the reference DuoDash installation is deferred.
   No central dimming layer, app-list toolbar item, or CarPlay Settings item.
 - Top-corner pane activators show a compact app picker in that pane. App content
   taps retain their original meaning. Layout selection shows eight miniature shapes.
-- iPhone Settings preference bundle (phone launcher hidden): App Bridge
-  toggle/allowlist, auto-start, close replaced apps, close on disconnect, language,
+- iPhone Settings preference bundle (phone launcher hidden): Split master
+  toggle, auto-start, close replaced apps, close on disconnect, language,
   Split text size, last display info and log export. Layout and hide-delay knobs
   are deliberately absent from phone settings.
 - CarPlay launcher icon remains the entry point. No phone launch is required.
@@ -75,3 +75,16 @@ Mechanism references inspected: opa334/AltList LSApplicationProxy+AltList.m
 (atl_isHidden checks SBAppTags and application-record tags), and rpetrich/Powercuff
 PreferenceLoader entry (absolute icon path). App hiding must still be confirmed
 on the installed iOS build, including retention of the CarPlay launcher.
+
+## 2026-09-29 — alpha4: remove redundant phone app filtering
+
+Removed the phone-only app chooser and all allowedApps checks in the CarPlay
+picker, pane opening and preference-change handler. Previously saved allowlists
+are ignored, including an empty list, so an old choice cannot silently hide apps
+after the settings row is gone. The existing Split enable switch remains and is
+labelled accurately as Enable CarPlay Split. This release does not add standalone
+CarPlay app icons or change rendering/performance policy.
+
+Tracked the standalone-app feature and the evidence-based performance work in
+TIEP_TUC_DU_AN.md. CPU/GPU/temperature improvements are not claimed without device
+measurements. Existing data are crash/geometry evidence, not a performance trace.

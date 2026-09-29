@@ -48,13 +48,12 @@ static void CPSTerminate(NSString *bid,void(^detach)(void),void(^done)(NSString 
     }@catch(NSException *e){[CPSTerminating removeObject:bid];CPSLog(e.reason);done(CPST(@"Không đóng được app",@"Could not close app"));}
 }
 static NSArray *CPSAvailableApps(void) {
-    NSMutableArray *apps=[NSMutableArray array];NSArray *allowed=CPSPref(@"allowedApps");
+    NSMutableArray *apps=[NSMutableArray array];
     id controller=CPSGet(NSClassFromString(@"SBApplicationController"),@"sharedInstance");
     for(id app in CPSGet(controller,@"allInstalledApplications")){
         NSString *bid=CPSGet(app,@"bundleIdentifier"),*name=CPSGet(app,@"displayName"),*type=CPSGet(app,@"bundleType");
         if(!bid.length||!name.length||[bid isEqual:CPSPreferences])continue;
         if(![type isEqual:@"User"]&&![@[@"com.apple.Maps",@"com.apple.mobilemusic",@"com.apple.mobilesafari",@"com.apple.podcasts",@"com.apple.MobileSMS"] containsObject:bid])continue;
-        if(allowed&&![allowed containsObject:bid])continue;
         [apps addObject:@{@"id":bid,@"title":name}];
     }
     return [apps sortedArrayUsingComparator:^NSComparisonResult(id a,id b){return [a[@"title"] localizedCaseInsensitiveCompare:b[@"title"]];}];
@@ -167,13 +166,12 @@ static NSArray *CPSAvailableApps(void) {
 }
 - (void)choose:(UIButton *)button {
  NSInteger index=button.tag;NSMutableArray *rows=[NSMutableArray array];for(NSDictionary *app in CPSAvailableApps()){BOOL duplicate=NO;for(int i=0;i<3;i++)if(i!=index&&self.hosts[i]!=NSNull.null&&[[self.hosts[i] bundleID]isEqual:app[@"id"]])duplicate=YES;if(!duplicate)[rows addObject:app];}
- if(!rows.count){[self message:CPST(@"Không có app được chọn trong cài đặt",@"No apps enabled in settings")];return;}
+ if(!rows.count){[self message:CPST(@"Chưa tìm thấy ứng dụng phù hợp",@"No eligible apps found")];return;}
  __weak typeof(self) weak=self;[self showRows:rows pane:index pick:^(NSDictionary *a){[weak dismissPanel];[weak openBundle:a[@"id"] pane:index];}];
 }
 - (void)message:(NSString *)text{self.statusLabel.text=text;self.statusLabel.hidden=NO;__weak typeof(self) weak=self;dispatch_after(dispatch_time(DISPATCH_TIME_NOW,4*NSEC_PER_SEC),dispatch_get_main_queue(),^{if([weak.statusLabel.text isEqual:text])weak.statusLabel.hidden=YES;});}
 - (void)openBundle:(NSString *)bid pane:(NSInteger)pane {
  if(self.shuttingDown||pane<0||pane>2||!CPSEnabled()||[CPSTerminating containsObject:bid])return;
- NSArray *allowed=CPSPref(@"allowedApps");if(allowed&&![allowed containsObject:bid])return;
  for(id h in self.hosts)if(h!=NSNull.null&&[[h bundleID]isEqual:bid])return;
  NSError *error=nil;CPSSceneHost *host=[[CPSSceneHost alloc]initWithBundleID:bid error:&error];if(!host){[self message:error.localizedDescription];return;}
  id previous=self.hosts[pane];NSString *old=previous==NSNull.null?nil:[previous bundleID];if(previous!=NSNull.null)[previous close];self.hosts[pane]=host;
