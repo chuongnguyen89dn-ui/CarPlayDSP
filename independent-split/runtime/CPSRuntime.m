@@ -14,6 +14,10 @@ static id CPSObject(id object, NSString *name, id argument) {
     SEL selector=NSSelectorFromString(name);
     return [object respondsToSelector:selector] ? ((id(*)(id,SEL,id))objc_msgSend)(object,selector,argument) : nil;
 }
+static void CPSSetObject(id object, NSString *name, id argument) {
+    SEL selector=NSSelectorFromString(name);
+    if([object respondsToSelector:selector]) ((void(*)(id,SEL,id))objc_msgSend)(object,selector,argument);
+}
 static void CPSBool(id object, NSString *name, BOOL argument) {
     SEL selector=NSSelectorFromString(name);
     if([object respondsToSelector:selector]) ((void(*)(id,SEL,BOOL))objc_msgSend)(object,selector,argument);
@@ -570,6 +574,57 @@ static BOOL CPSHook(Class cls,SEL selector,IMP replacement,IMP *original) {
     if(!class_addMethod(cls,selector,replacement,method_getTypeEncoding(method))) method_setImplementation(method,replacement);
     return YES;
 }
+// CarPlay owns its own launcher process on iOS 16. Add only our app to its
+// library. Selecting that icon signals SpringBoard to open the external UI;
+// the iPhone application never needs to be launched.
+static id (*CPSOriginalNewCarLibrary)(id,SEL);
+static id CPSNewCarLibrary(id cls,SEL selector) {
+    id library=CPSOriginalNewCarLibrary(cls,selector);
+    @try {
+        NSString *bundle=CPSPreferences;
+        id app=CPSObject(library,@"applicationInfoForBundleIdentifier:",bundle);
+        if(!app) {
+            id proxy=CPSObject(NSClassFromString(@"LSApplicationProxy"),@"applicationProxyForIdentifier:",bundle);
+            SEL add=NSSelectorFromString(@"addApplicationProxy:withOverrideURL:");
+            if(proxy && [library respondsToSelector:add]) {
+                ((void(*)(id,SEL,id,id))objc_msgSend)(library,add,proxy,nil);
+                app=CPSObject(library,@"applicationInfoForBundleIdentifier:",bundle);
+            }
+        }
+        Ivar declarationIvar=class_getInstanceVariable([app class],"_carPlayDeclaration");
+        Class declarationClass=NSClassFromString(@"CRCarPlayAppDeclaration");
+        if(app && declarationIvar && declarationClass && !object_getIvar(app,declarationIvar)) {
+            id declaration=[declarationClass new];
+            CPSBool(declaration,@"setSupportsTemplates:",NO);
+            CPSBool(declaration,@"setSupportsMaps:",YES);
+            CPSSetObject(declaration,@"setBundleIdentifier:",bundle);
+            CPSSetObject(declaration,@"setBundlePath:",CPSGet(app,@"bundleURL"));
+            object_setIvar(app,declarationIvar,declaration);
+            CPSLog(@"registered launcher icon in CarPlay");
+        } else if(!app || !declarationIvar || !declarationClass) {
+            CPSLog(@"CarPlay launcher registration API unavailable");
+        }
+    } @catch(NSException *exception) { CPSLog([NSString stringWithFormat:@"launcher registration: %@",exception.reason]); }
+    return library;
+}
+static id (*CPSOriginalCarLaunch)(id,SEL,id,id);
+static id CPSCarLaunch(id cls,SEL selector,id application,id settings) {
+    NSString *bundle=CPSGet(application,@"bundleIdentifier");
+    if([bundle isEqualToString:CPSPreferences]) {
+        CPSLog(@"launcher icon tapped; requesting external split");
+        notify_post(CPSStartNotification);
+        return nil;
+    }
+    return CPSOriginalCarLaunch(cls,selector,application,settings);
+}
+static void CPSInstallCarLauncher(void) {
+    Class libraryClass=NSClassFromString(@"CARApplication");
+    Class launchClass=NSClassFromString(@"CARApplicationLaunchInfo");
+    if(!CPSOriginalNewCarLibrary)
+        CPSHook(object_getClass(libraryClass),NSSelectorFromString(@"_newApplicationLibrary"),(IMP)CPSNewCarLibrary,(IMP *)&CPSOriginalNewCarLibrary);
+    if(!CPSOriginalCarLaunch)
+        CPSHook(object_getClass(launchClass),NSSelectorFromString(@"launchInfoForApplication:withActivationSettings:"),(IMP)CPSCarLaunch,(IMP *)&CPSOriginalCarLaunch);
+}
 @interface CPSHomeGestureTarget : NSObject
 - (void)hold:(UILongPressGestureRecognizer *)gesture;
 @end
@@ -614,6 +669,7 @@ void CPSInstallRuntime(void) {
         [[NSNotificationCenter defaultCenter] addObserverForName:@"CarPlayIsConnectedDidChange" object:nil queue:NSOperationQueue.mainQueue usingBlock:^(NSNotification *note) { if(!CPSCarDisplay()) CPSStop(); }];
         [[NSNotificationCenter defaultCenter] addObserverForName:UIScreenDidDisconnectNotification object:nil queue:NSOperationQueue.mainQueue usingBlock:^(NSNotification *note) { if(!CPSCarDisplay()) CPSStop(); }];
     } else if([process isEqualToString:@"CarPlay"]) {
+        CPSInstallCarLauncher();
         CPSGestureTarget=[CPSHomeGestureTarget new];
         CPSInstallHomeGesture();
         __block NSUInteger attempts=0;
@@ -623,5 +679,9 @@ void CPSInstallRuntime(void) {
     }
 }
 __attribute__((constructor)) static void CPSInitialize(void) {
-    @autoreleasepool { dispatch_async(dispatch_get_main_queue(), ^{ CPSInstallRuntime(); }); }
+    @autoreleasepool {
+        if([NSProcessInfo.processInfo.processName isEqualToString:@"CarPlay"])
+            CPSInstallRuntime();
+        else dispatch_async(dispatch_get_main_queue(), ^{ CPSInstallRuntime(); });
+    }
 }
