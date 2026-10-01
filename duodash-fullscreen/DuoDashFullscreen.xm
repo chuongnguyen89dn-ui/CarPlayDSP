@@ -18,7 +18,7 @@ static void ensureState(void) {
 static void trackApp(id app) {
     ensureState();
     for (NSValue *v in gApps)
-        if ([v pointerValue] == app) return;
+        if ([v pointerValue] == (__bridge void *)app) return;
     [gApps addObject:[NSValue valueWithNonretainedObject:app]];
 }
 
@@ -131,7 +131,6 @@ static void divEnded(id self, SEL _cmd, NSSet *touches, UIEvent *event) {
     CGPoint end = [t locationInView:self];
     CGFloat dx = end.x - gStart.x, dy = end.y - gStart.y;
 
-    // Vertical swipe is reserved for fullscreen; horizontal drag remains DuoDash divider resize.
     if (fabs(dy) >= 28.0 && fabs(dy) > fabs(dx) * 1.35)
         setFullscreen(!gHidden);
 }
