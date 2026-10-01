@@ -1,0 +1,8 @@
+Package: com.chuong.duodash-fullscreen
+Name: DuoDash Fullscreen Adapter
+Version: 0.1.0
+Architecture: iphoneos-arm64
+Maintainer: chuongnguyen89dn-ui
+Section: Tweaks
+Depends: com.sensetechlab.duodash (= 1.1.3), mobilesubstrate (>= 0.9.5000) | ellekit
+Description: Reversible fullscreen Dock hide/show adapter for the existing DuoDash 1.1.3 split UI.
