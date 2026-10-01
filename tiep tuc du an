@@ -1,0 +1,10 @@
+TIEP TUC DU AN — CARPLAYDSP
+
+CAP NHAT 2026-10-02
+- Repo: chuongnguyen89dn-ui/carplaydsp.
+- Muc tieu: Rootless iOS 16 / Dopamine CarPlay DSP research POC.
+- POC 0.0.1 da thu hook AudioUnitRender trong mediaserverd va filter peaking EQ 1 kHz, Q 1.0, -15 dB de kiem tra tinh kha thi.
+- POC hien chua duoc coi la cabin Auto-Tune va hook phai duoc verify tren thiet bi truoc khi them measurement/optimizer.
+- Pham vi an toan da chot: ban cuoi phai nhan dien media/CarPlay stream truoc khi xu ly de khong tac dong cuoc goi, Siri, navigation prompts; POC hien tai chua tuyen bo da tach duoc cac luong nay.
+- Runtime verification dung log subsystem com.anhchuong.carplaydsp khi CarPlay dang ket noi va phat nhac.
+- Khong tron handoff cua du an DauDat-CarPlay vao repo nay.
