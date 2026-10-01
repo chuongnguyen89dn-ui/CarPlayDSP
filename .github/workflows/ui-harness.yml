@@ -1,0 +1,29 @@
+name: UI harness screenshot
+on:
+  workflow_dispatch:
+  push:
+    branches: [prototype/independent-carplay-split]
+    paths:
+      - 'independent-split/simulator/**'
+      - '.github/workflows/ui-harness.yml'
+permissions:
+  contents: read
+jobs:
+  screenshot:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: '22' }
+      - run: npm install playwright && npx playwright install --with-deps chromium
+      - run: |
+          python3 -m http.server 8080 --directory independent-split/simulator >/tmp/http.log 2>&1 &
+          cat > /tmp/shot.js <<'EOF'
+          const { chromium }=require('playwright');
+          (async()=>{const b=await chromium.launch({headless:true});const p=await b.newPage({viewport:{width:427,height:240}});await p.goto('http://127.0.0.1:8080');await p.screenshot({path:'ui-normal.png'});await p.evaluate(()=>document.querySelector('#cp').classList.add('expanded'));await p.screenshot({path:'ui-expanded.png'});await b.close()})();
+          EOF
+          NODE_PATH=$PWD/node_modules node /tmp/shot.js
+      - uses: actions/upload-artifact@v4
+        with:
+          name: CarPlay-UI-harness-screenshots
+          path: ui-*.png
