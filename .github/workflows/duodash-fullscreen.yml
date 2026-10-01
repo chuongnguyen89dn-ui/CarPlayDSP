@@ -1,0 +1,36 @@
+name: Build DuoDash Fullscreen Adapter
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [duodash-fullscreen-adapter]
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install Theos and SDK
+        run: |
+          brew install ldid xz dpkg
+          git clone --recursive https://github.com/theos/theos.git "$HOME/theos"
+          rm -rf "$HOME/theos/sdks"
+          git clone --depth=1 https://github.com/theos/sdks.git "$HOME/theos/sdks"
+          echo "THEOS=$HOME/theos" >> "$GITHUB_ENV"
+          test -n "$(find "$HOME/theos/sdks" -maxdepth 1 -type d -name '*.sdk' -print -quit)"
+      - name: Build
+        run: make clean package FINALPACKAGE=1
+      - name: Verify package
+        run: |
+          set -e
+          ls -lh packages/*.deb
+          dpkg-deb -I packages/*.deb
+          dpkg-deb -c packages/*.deb
+      - name: Upload DEB
+        uses: actions/upload-artifact@v4
+        with:
+          name: DuoDash-Fullscreen-Adapter
+          path: packages/*.deb
