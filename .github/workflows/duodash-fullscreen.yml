@@ -22,15 +22,15 @@ jobs:
           echo "THEOS=$HOME/theos" >> "$GITHUB_ENV"
           test -n "$(find "$HOME/theos/sdks" -maxdepth 1 -type d -name '*.sdk' -print -quit)"
       - name: Build
-        run: make clean package FINALPACKAGE=1
+        run: make -C duodash-fullscreen clean package FINALPACKAGE=1
       - name: Verify package
         run: |
           set -e
-          ls -lh packages/*.deb
-          dpkg-deb -I packages/*.deb
-          dpkg-deb -c packages/*.deb
+          ls -lh duodash-fullscreen/packages/*.deb
+          dpkg-deb -I duodash-fullscreen/packages/*.deb
+          dpkg-deb -c duodash-fullscreen/packages/*.deb
       - name: Upload DEB
         uses: actions/upload-artifact@v4
         with:
           name: DuoDash-Fullscreen-Adapter
-          path: packages/*.deb
+          path: duodash-fullscreen/packages/*.deb
