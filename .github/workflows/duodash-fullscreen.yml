@@ -13,6 +13,11 @@ jobs:
     runs-on: macos-latest
     steps:
       - uses: actions/checkout@v4
+      - name: Test adapter app lifetime
+        run: |
+          xcrun clang -fobjc-arc -Wall -Wextra -framework Foundation \
+            duodash-fullscreen/tests/app-lifetime.m -o "$RUNNER_TEMP/app-lifetime"
+          "$RUNNER_TEMP/app-lifetime"
       - name: Install Theos and SDK
         run: |
           brew install ldid xz dpkg

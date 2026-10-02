@@ -5,21 +5,58 @@
 #import <objc/message.h>
 #import <substrate.h>
 
-static NSMutableArray *gApps;
+// Weak, identity-based ownership: closing an app must not leave a dangling
+// pointer for the next relayout/restore. Snapshot arrays retain live objects
+// only for the duration of an operation.
+#import "DDFAppState.h"
+
+static DDFAppState *gState;
 static __weak UIView *gDockView;
-static NSMutableDictionary *gOriginalFrames;
 static BOOL gHidden;
 static CGFloat gDockWidth;
 
-static void ensureState(void) { if (!gApps) gApps=[NSMutableArray array]; if (!gOriginalFrames) gOriginalFrames=[NSMutableDictionary dictionary]; }
-static void trackApp(id app) { ensureState(); for (NSValue *v in gApps) if ([v pointerValue] == (__bridge void *)app) return; [gApps addObject:[NSValue valueWithNonretainedObject:app]]; }
-static void relayoutApps(void) { for (NSValue *v in [gApps copy]) { id app=[v nonretainedObjectValue]; if (app && [app respondsToSelector:@selector(relayoutAllWindows)]) ((void(*)(id,SEL))objc_msgSend)(app,@selector(relayoutAllWindows)); } }
+static void ensureState(void) {
+    if (!gState) gState = [DDFAppState new];
+}
+static void trackApp(id app) {
+    ensureState();
+    if (app) [gState.apps addObject:app];
+}
+static void relayoutApps(void) {
+    for (id app in gState.apps.allObjects) {
+        if ([app respondsToSelector:@selector(relayoutAllWindows)])
+            ((void(*)(id,SEL))objc_msgSend)(app,@selector(relayoutAllWindows));
+    }
+}
 static void applyFrames(void) {
-    ensureState(); NSArray *apps=[gApps copy];
-    if (!gHidden) { for (NSValue *key in [gOriginalFrames allKeys]) { id app=[key nonretainedObjectValue]; NSValue *value=gOriginalFrames[key]; if (app && value && [app respondsToSelector:@selector(setBridgeFrame:)]) ((void(*)(id,SEL,CGRect))objc_msgSend)(app,@selector(setBridgeFrame:),value.CGRectValue); } [gOriginalFrames removeAllObjects]; return; }
-    NSValue *leftKey=nil; CGFloat leftX=CGFLOAT_MAX;
-    for (NSValue *v in apps) { id app=[v nonretainedObjectValue]; if (!app || ![app respondsToSelector:@selector(bridgeFrame)] || ![app respondsToSelector:@selector(setBridgeFrame:)]) continue; CGRect r=((CGRect(*)(id,SEL))objc_msgSend)(app,@selector(bridgeFrame)); if (r.size.width<2 || r.size.height<2) continue; NSValue *key=[NSValue valueWithNonretainedObject:app]; if (!gOriginalFrames[key]) gOriginalFrames[key]=[NSValue valueWithCGRect:r]; if (CGRectGetMinX(r)<leftX) { leftX=CGRectGetMinX(r); leftKey=key; } }
-    if (leftKey) { id app=[leftKey nonretainedObjectValue]; CGRect r=[gOriginalFrames[leftKey] CGRectValue]; CGFloat dw=gDockWidth>1?gDockWidth:45.0; r.origin.x-=dw; r.size.width+=dw; ((void(*)(id,SEL,CGRect))objc_msgSend)(app,@selector(setBridgeFrame:),r); }
+    ensureState();
+    if (!gHidden) {
+        for (id app in gState.frames.keyEnumerator.allObjects) {
+            NSValue *value = [gState.frames objectForKey:app];
+            if (value && [app respondsToSelector:@selector(setBridgeFrame:)])
+                ((void(*)(id,SEL,CGRect))objc_msgSend)(app,@selector(setBridgeFrame:),value.CGRectValue);
+        }
+        [gState.frames removeAllObjects];
+        return;
+    }
+    id leftApp = nil;
+    CGFloat leftX = CGFLOAT_MAX;
+    for (id app in gState.apps.allObjects) {
+        if (![app respondsToSelector:@selector(bridgeFrame)] ||
+            ![app respondsToSelector:@selector(setBridgeFrame:)]) continue;
+        CGRect r = ((CGRect(*)(id,SEL))objc_msgSend)(app,@selector(bridgeFrame));
+        if (r.size.width < 2 || r.size.height < 2) continue;
+        if (![gState.frames objectForKey:app])
+            [gState.frames setObject:[NSValue valueWithCGRect:r] forKey:app];
+        if (CGRectGetMinX(r) < leftX) { leftX = CGRectGetMinX(r); leftApp = app; }
+    }
+    if (leftApp) {
+        CGRect r = [[gState.frames objectForKey:leftApp] CGRectValue];
+        CGFloat dw = gDockWidth > 1 ? gDockWidth : 45.0;
+        r.origin.x -= dw;
+        r.size.width += dw;
+        ((void(*)(id,SEL,CGRect))objc_msgSend)(leftApp,@selector(setBridgeFrame:),r);
+    }
 }
 static void setFullscreen(BOOL hidden) { if (!gDockView) return; if (hidden) { CGRect r=[gDockView convertRect:gDockView.bounds toView:gDockView.window]; gDockWidth=MAX(1.0,r.size.width); gHidden=YES; gDockView.hidden=YES; gDockView.alpha=0.0; } else { gHidden=NO; gDockView.hidden=NO; gDockView.alpha=1.0; } applyFrames(); relayoutApps(); }
 static void (*origAppSetBridgeFrame)(id,SEL,CGRect); static void appSetBridgeFrame(id self,SEL _cmd,CGRect frame) { trackApp(self); if (origAppSetBridgeFrame) origAppSetBridgeFrame(self,_cmd,frame); }
