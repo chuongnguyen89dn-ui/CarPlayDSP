@@ -9,8 +9,11 @@ Only add fullscreen and reversible bar/Dock hiding. Horizontal divider drag
 must still work; fullscreen must fill the released space without a black band.
 Do not recreate the original UI. A Simulator screenshot of the original UI
 must be reviewed before treating this as ready for DEB/device testing.
-The previously reported red pane/app crash remains unresolved: no new crash
-log or backtrace is present in this continuation.
+The user clarified that the reported red pane/app crash occurred in the earlier
+independently implemented Split app. It has not been reproduced in original
+DuoDash. Returning to the original engine may avoid that bug, but this is not
+yet a verified runtime result. Do not block adapter work on diagnosing the
+retired independent implementation or attribute its crash to DuoDash.
 
 ## Verified findings
 
@@ -52,10 +55,19 @@ source buildable for Simulator, or a compatible Simulator build with its host
 and dependencies. A device-only DEB and screenshots of a replica do not satisfy
 this prerequisite. Do not remove the guard merely to make CI green.
 
-For the red pane crash, obtain the crash/system log at app launch and compare
-against baseline DuoDash with Airaw and other fullscreen adapters absent.
-Existing evidence of co-injected Airaw is in the root handoff document; it does
-not establish the cause of the red pane error.
+Use original DuoDash for the baseline, with Airaw and other fullscreen adapters
+absent. Collect a crash/system log if the problem reproduces there. Existing
+evidence of co-injected Airaw is in the root handoff document; it does not
+establish the cause of the earlier independent app's red pane error.
+
+## Adapter lifetime correction
+
+Commit `ccadfe2` replaces nonretained app pointers with zeroing weak,
+identity-based collections. It prevents later restore/relayout from messaging
+an app object that has already been deallocated. The Foundation regression
+test passed on macOS. This is a code-level adapter fix, not proof that the
+previous independent app's red pane issue is fixed. No original DuoDash UI,
+app picker or split engine was replaced.
 
 Once an original-UI Simulator target is available, exercise the actual adapter
 and capture baseline, app picker, fullscreen, divider resize/swap, and restore
