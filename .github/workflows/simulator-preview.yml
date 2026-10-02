@@ -16,6 +16,37 @@ jobs:
     runs-on: macos-latest
     steps:
       - uses: actions/checkout@v4
+
+      - name: Fetch and inspect real DuoDash 1.1.3 package
+        shell: bash
+        run: |
+          set -euxo pipefail
+          OUT="$RUNNER_TEMP/duodash-real"
+          mkdir -p "$OUT/root" "$OUT/report"
+          curl -fL --retry 3 \
+            'https://raw.githubusercontent.com/chuongnguyen89dn-ui/DauDat-CarPlay/main/DuoDash_1.1.3_Fullscreen427_iphoneos-arm64.deb' \
+            -o "$OUT/DuoDash.deb"
+          ar -x "$OUT/DuoDash.deb" --output "$OUT/ar"
+          DATA="$(find "$OUT/ar" -maxdepth 1 -type f -name 'data.tar*' | head -1)"
+          test -n "$DATA"
+          tar -xf "$DATA" -C "$OUT/root"
+          find "$OUT/root" -print | sort > "$OUT/report/payload-files.txt"
+          DYLIB="$(find "$OUT/root" -type f -name 'DuoDash.dylib' | head -1)"
+          test -n "$DYLIB"
+          file "$DYLIB" > "$OUT/report/dylib-file.txt"
+          strings -a "$DYLIB" > "$OUT/report/dylib-strings.txt"
+          otool -L "$DYLIB" > "$OUT/report/dylib-libraries.txt" || true
+          otool -ov "$DYLIB" > "$OUT/report/dylib-objc.txt" || true
+          find "$OUT/root" -type f \( -iname '*.png' -o -iname '*.jpg' -o -iname '*.jpeg' -o -iname '*.plist' -o -iname '*.nib' -o -iname '*.storyboardc' -o -iname '*.car' \) -print | sort > "$OUT/report/ui-resources.txt"
+          cp "$DYLIB" "$OUT/report/DuoDash.dylib"
+
+      - name: Upload real DuoDash inspection
+        uses: actions/upload-artifact@v4
+        with:
+          name: DuoDash-1.1.3-real-package-inspection
+          path: ${{ runner.temp }}/duodash-real/report/**
+          if-no-files-found: error
+
       - name: Build and capture on iPhone Simulator
         run: bash simulator-preview/build-and-capture.sh "$RUNNER_TEMP/duodash-preview"
       - name: Verify screenshots
