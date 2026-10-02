@@ -1,0 +1,31 @@
+name: iPhone Simulator DuoDash UI Preview
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [duodash-fullscreen-adapter]
+    paths:
+      - 'simulator-preview/**'
+      - '.github/workflows/simulator-preview.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  screenshot:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build and capture on iPhone Simulator
+        run: bash simulator-preview/build-and-capture.sh "$RUNNER_TEMP/duodash-preview"
+      - name: Verify screenshots
+        run: |
+          test -s "$RUNNER_TEMP/duodash-preview/screenshots/duodash-split-427x240.png"
+          test -s "$RUNNER_TEMP/duodash-preview/screenshots/duodash-fullscreen-427x240.png"
+          shasum -a 256 "$RUNNER_TEMP/duodash-preview/screenshots/"*.png
+      - name: Upload iPhone Simulator screenshots
+        uses: actions/upload-artifact@v4
+        with:
+          name: DuoDash-iPhone-Simulator-427x240
+          path: ${{ runner.temp }}/duodash-preview/screenshots/*.png
+          if-no-files-found: error
