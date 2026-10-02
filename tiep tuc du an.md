@@ -44,3 +44,22 @@ Alpha2 bổ sung `-Wl,-headerpad,0x1000`, dựng bằng Xcode trên macOS, nâng
 Sau cập nhật Sileo lên 0.2.0~alpha2 và respring, app điều khiển phải hiện giao diện ngay cả khi chưa nối CarPlay. Chia đôi trên CarPlay vẫn cần xác minh trên thiết bị thật.
 
 Xác minh: GitHub Actions run 36506567707 build/deploy thành công; đã tải lại alpha2 từ nguồn Sileo và kiểm tra cấu trúc binary cùng SHA256 khớp chỉ mục APT. Chưa xác nhận mở app trên thiết bị người dùng sau cập nhật.
+
+
+## 2026-10-02 — test2: không thấy DuoDash trong Settings
+
+Người dùng xác nhận không có mục DuoDash sau khi đóng/mở Settings. Chưa có log
+Preferences trên thiết bị nên chưa kết luận nguyên nhân runtime. Kiểm tra test1
+cho thấy bundle có đủ nhưng loader entry chỉ dùng dạng inline, không trỏ tới
+DuoDashPrefs.bundle. Test2 khai báo bundle, bundlePath rootless và isController
+rõ ràng; dùng đúng DuoDashRootListController có sẵn. Giữ danh sách items gốc
+và đưa toàn bộ danh sách đó vào Root.plist của bundle để giữ cả Choose Apps
+to Bridge, ngôn ngữ và các mục gốc khác. Icon trỏ tới file thực sự có trong gói.
+
+Không đổi binary DuoDash, picker hoặc split engine. 40 file nguyên bản còn lại
+giữ từng byte; chỉ sửa hai plist Settings bên cạnh thay helper fullscreen từ
+test1. Phiên bản Sileo: 1.1.3+adapter1~test2. Sau deploy kiểm tra chỉ mục, hash
+và loader/bundle/Root trong DEB tải từ nguồn; hiển thị Settings vẫn cần người
+dùng xác nhận trên iPhone. Nếu vẫn không có, cần kiểm tra PreferenceLoader có
+được inject vào Preferences và phiên bản thực sự đã cài; không quy lỗi do người
+dùng hoặc tiếp tục khẳng định chỉ cần mở lại Settings.

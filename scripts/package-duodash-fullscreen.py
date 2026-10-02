@@ -45,6 +45,31 @@ payload = {name: value for name, value in original.items() if name not in remove
 assert not (payload.keys() & addition.keys())
 payload.update(addition)
 
+# Register the shipped native controller explicitly. The source package's
+# inline entry never names DuoDashPrefs.bundle. Keep the full original settings
+# list for both the native controller and any original inline-plist hooks.
+loader_path = 'var/jb/Library/PreferenceLoader/Preferences/DuoDashPrefs.plist'
+root_path = 'var/jb/Library/PreferenceBundles/DuoDashPrefs.bundle/Root.plist'
+loader = plistlib.loads(original[loader_path][0])
+original_items = loader['items']
+loader['entry'].update({
+    'bundle': 'DuoDashPrefs',
+    'bundlePath': '/var/jb/Library/PreferenceBundles/DuoDashPrefs.bundle',
+    'isController': True,
+    'icon': '/var/jb/Library/PreferenceBundles/DuoDashPrefs.bundle/icon@2x.png',
+})
+root_plist = plistlib.loads(original[root_path][0])
+root_plist['title'] = loader['title']
+root_plist['items'] = original_items
+for name, document in ((loader_path, loader), (root_path, root_plist)):
+    payload[name] = (plistlib.dumps(document, fmt=plistlib.FMT_XML, sort_keys=False),
+                     original[name][1])
+settings_modified = {loader_path, root_path}
+assert root_plist['items'] == plistlib.loads(original[loader_path][0])['items']
+assert plistlib.loads(original[
+    'var/jb/Library/PreferenceBundles/DuoDashPrefs.bundle/Info.plist'][0]
+)['NSPrincipalClass'] == 'DuoDashRootListController'
+
 fields = {}
 for line in metadata['control'][0].decode().splitlines():
     if line and not line[0].isspace() and ':' in line:
@@ -57,7 +82,7 @@ conflicts += ['com.sensetechlab.duodash', 'com.axs.airaw',
 control = {
     'Package': 'com.chuong.duodash-fullscreen-complete',
     'Name': 'DuoDash Fullscreen (Original UI)',
-    'Version': '1.1.3+adapter1~test1',
+    'Version': '1.1.3+adapter1~test2',
     'Architecture': 'iphoneos-arm64',
     'Maintainer': 'chuongnguyen89dn-ui',
     'Author': 'SenseTechLab (DuoDash); chuongnguyen89dn-ui (adapter)',
@@ -94,11 +119,13 @@ with tempfile.TemporaryDirectory(prefix='duodash-package-') as temp:
 
 result = contents(output)
 assert result == payload, 'Payload bytes or permissions changed during packaging'
-assert all(result[name] == value for name, value in original.items() if name not in removed)
+assert all(result[name] == value for name, value in original.items() if name not in removed | settings_modified)
+assert plistlib.loads(result[root_path][0])['items'] == original_items
+assert plistlib.loads(result[loader_path][0])['entry']['bundle'] == 'DuoDashPrefs'
 assert not any('Airaw' in name or 'AiraW' in name or 'CarPlaySplit' in name for name in result)
 assert not (removed & result.keys())
 assert contents(output, True)['postinst'] == metadata['postinst']
 assert contents(output, True)['prerm'] == metadata['prerm']
-print(f'PASS: {len(original) - len(removed)} original DuoDash files preserved byte-for-byte; '
-      'only two old fullscreen files replaced by the adapter.')
+print(f'PASS: {len(original) - len(removed) - len(settings_modified)} original DuoDash files preserved byte-for-byte; '
+      'fullscreen helper replaced; Settings registration uses native bundle with all original rows.')
 print(f'SHA256 {hashlib.sha256(output.read_bytes()).hexdigest()}  {output}')
