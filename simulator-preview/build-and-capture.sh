@@ -4,7 +4,7 @@ cd "$(dirname "$0")"
 OUT="${1:-$PWD/output}"; APP="$OUT/CarPlaySplitPreview.app"; mkdir -p "$APP"
 SDK=$(xcrun --sdk iphonesimulator --show-sdk-path)
 ARCH=$(uname -m); [[ "$ARCH" == arm64 ]] && TARGET=arm64-apple-ios16.0-simulator || TARGET=x86_64-apple-ios16.0-simulator
-xcrun --sdk iphonesimulator clang -target "$TARGET" -isysroot "$SDK" -fobjc-arc -framework UIKit -framework Foundation -framework QuartzCore main.m -o "$APP/CarPlaySplitPreview"
+xcrun --sdk iphonesimulator clang -target "$TARGET" -isysroot "$SDK" -fobjc-arc -framework UIKit -framework Foundation -framework QuartzCore -framework CoreGraphics main.m -o "$APP/CarPlaySplitPreview"
 cp Info.plist "$APP/Info.plist"
 codesign --force --sign - "$APP"
 UDID=$(xcrun simctl list devices available -j | python3 -c 'import json,sys; d=json.load(sys.stdin); xs=[x for v in d["devices"].values() for x in v if "iPhone" in x["name"] and x.get("isAvailable")]; print(xs[0]["udid"])')
