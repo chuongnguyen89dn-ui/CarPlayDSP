@@ -63,3 +63,24 @@ và loader/bundle/Root trong DEB tải từ nguồn; hiển thị Settings vẫn
 dùng xác nhận trên iPhone. Nếu vẫn không có, cần kiểm tra PreferenceLoader có
 được inject vào Preferences và phiên bản thực sự đã cài; không quy lỗi do người
 dùng hoặc tiếp tục khẳng định chỉ cần mở lại Settings.
+
+
+## 2026-10-03 — quay về DEB nguồn nguyên trạng để đối chứng
+
+Người dùng báo Settings trống sau test2. Chưa xác định nguyên nhân runtime;
+không coi build PASS hoặc việc giữ binary là bằng chứng giữ nguyên hành vi.
+
+Đưa nguyên DEB tại DauDat-CarPlay commit 5f683ad lên cùng nguồn Sileo.
+Tên hiển thị trong chỉ mục: **DuoDash (Source DEB)**; mã gói thật:
+`com.sensetechlab.duodash`; phiên bản thật: `1.1.3+fullscreen1`.
+DEB SHA256: `ea0d3bb8c8b9da2b45c3f158f390a7966419e84899f820d06f45cd51401fa465`.
+Không đóng gói lại, không sửa control, script, plist, binary hoặc helper đi kèm.
+Nhãn Name chỉ thêm trong chỉ mục APT để tránh người dùng chọn nhầm.
+Đây là nguyên bản file nguồn đã có trong repo, KHÔNG tuyên bố bản vendor 1.1.3
+chưa chỉnh sửa: file này vốn đã có helper fullscreen và suffix +fullscreen1.
+
+Trên máy: gỡ DuoDash Fullscreen (Original UI), rồi cài DuoDash (Source DEB),
+respring và kiểm tra Settings trước khi thử split. Không cài chồng các bản
+DuoDash/Airaw/adapter khác. Không tự cài/gỡ trên máy người dùng từ CI.
+Chỉ tiếp tục ghép adapter khi có kết quả đối chứng. Các gói thử cũ giữ trên
+nguồn phục vụ truy vết, nhưng không hướng dẫn cài test2 để làm đối chứng.
