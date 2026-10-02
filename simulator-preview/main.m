@@ -20,7 +20,7 @@ static UIView *Card(CGRect f, UIColor *color, NSString *title, NSString *subtitl
     UILabel *note=Label(@"Simulator visual gate · CarPlay viewport 427 × 240",10,[UIColor colorWithWhite:1 alpha:.55]); note.frame=CGRectMake(0,31,self.view.bounds.size.width,16); note.autoresizingMask=UIViewAutoresizingFlexibleWidth; [self.view addSubview:note];
 
     CGFloat scale=MIN((self.view.bounds.size.width-24)/427.0,(self.view.bounds.size.height-64)/240.0);
-    UIView *cp=[[UIView alloc] initWithFrame:CGRectMake(0,0,427*scale,240*scale)]; cp.center=CGPointMake(self.view.bounds.size.width/2,58+(self.view.bounds.size.height-58)/2); cp.autoresizingMask=UIViewAutoresizingFlexibleMargins; cp.backgroundColor=UIColor.blackColor; cp.layer.borderWidth=1; cp.layer.borderColor=[UIColor colorWithWhite:1 alpha:.18].CGColor; cp.clipsToBounds=YES; [self.view addSubview:cp];
+    UIView *cp=[[UIView alloc] initWithFrame:CGRectMake(0,0,427*scale,240*scale)]; cp.center=CGPointMake(self.view.bounds.size.width/2,58+(self.view.bounds.size.height-58)/2); cp.autoresizingMask=UIViewAutoresizingFlexibleLeftMargin|UIViewAutoresizingFlexibleRightMargin|UIViewAutoresizingFlexibleTopMargin|UIViewAutoresizingFlexibleBottomMargin; cp.backgroundColor=UIColor.blackColor; cp.layer.borderWidth=1; cp.layer.borderColor=[UIColor colorWithWhite:1 alpha:.18].CGColor; cp.clipsToBounds=YES; [self.view addSubview:cp];
     UIView *canvas=[[UIView alloc] initWithFrame:CGRectMake(0,0,427,240)]; canvas.transform=CGAffineTransformMakeScale(scale,scale); canvas.layer.anchorPoint=CGPointZero; canvas.layer.position=CGPointZero; [cp addSubview:canvas];
 
     CGFloat dock=full?0:45, divider=5, available=427-dock-divider, left=round(available*.50), right=available-left;
