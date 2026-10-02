@@ -22,11 +22,11 @@ jobs:
         run: |
           set -euxo pipefail
           OUT="$RUNNER_TEMP/duodash-real"
-          mkdir -p "$OUT/root" "$OUT/report"
+          mkdir -p "$OUT/root" "$OUT/report" "$OUT/ar"
           curl -fL --retry 3 \
             'https://raw.githubusercontent.com/chuongnguyen89dn-ui/DauDat-CarPlay/main/DuoDash_1.1.3_Fullscreen427_iphoneos-arm64.deb' \
             -o "$OUT/DuoDash.deb"
-          ar -x "$OUT/DuoDash.deb" --output "$OUT/ar"
+          (cd "$OUT/ar" && ar -x "$OUT/DuoDash.deb")
           DATA="$(find "$OUT/ar" -maxdepth 1 -type f -name 'data.tar*' | head -1)"
           test -n "$DATA"
           tar -xf "$DATA" -C "$OUT/root"
