@@ -1,18 +1,17 @@
-"""Preserve original DuoDash payload, replacing only its fullscreen helper.
+"""Restore the complete source DuoDash payload after an adapter regression.
 
-Usage: python3 scripts/package-duodash-fullscreen.py BASE.deb ADAPTER.deb OUT.deb
+Usage: python3 scripts/package-duodash-fullscreen.py BASE.deb OUT.deb
 This is a packaging/static verification gate, not a CarPlay runtime test.
 """
 import hashlib
 import io
 import pathlib
-import plistlib
 import subprocess
 import sys
 import tarfile
 import tempfile
 
-base, adapter, output = map(pathlib.Path, sys.argv[1:])
+base, output = map(pathlib.Path, sys.argv[1:])
 assert hashlib.sha256(base.read_bytes()).hexdigest() == (
     'ea0d3bb8c8b9da2b45c3f158f390a7966419e84899f820d06f45cd51401fa465'
 ), 'Unexpected DuoDash base package'
@@ -27,26 +26,10 @@ def contents(package, control=False):
 
 
 original = contents(base)
-addition = contents(adapter)
 metadata = contents(base, True)
-removed = {
-    'var/jb/usr/lib/TweakInject/DuoDashUnifiedFullscreen.dylib',
-    'var/jb/usr/lib/TweakInject/DuoDashUnifiedFullscreen.plist',
-}
-assert removed <= original.keys()
-prefix = 'var/jb/Library/MobileSubstrate/DynamicLibraries/DuoDashFullscreenAdapter'
-assert set(addition) == {prefix + '.dylib', prefix + '.plist'}, addition.keys()
-assert plistlib.loads(addition[prefix + '.plist'][0])['Filter']['Bundles'] == [
-    'com.apple.CarPlayTemplateUIHost']
-adapter_control = contents(adapter, True)['control'][0].decode()
-assert 'Package: com.chuong.duodash-fullscreen\n' in adapter_control
-assert 'Architecture: iphoneos-arm64\n' in adapter_control
-payload = {name: value for name, value in original.items() if name not in removed}
-assert not (payload.keys() & addition.keys())
-payload.update(addition)
-
-# Preserve the original PreferenceLoader registration and native bundle verbatim.
-# Do not convert the inline loader to a different controller or rewrite Root.plist.
+# Recovery release: no adapter, no frame hooks, no divider touch hooks.
+# Restore every source file, including its existing fullscreen helper.
+payload = dict(original)
 
 fields = {}
 for line in metadata['control'][0].decode().splitlines():
@@ -60,7 +43,7 @@ conflicts += ['com.sensetechlab.duodash', 'com.axs.airaw',
 control = {
     'Package': 'com.chuong.duodash-fullscreen-complete',
     'Name': 'DuoDash Fullscreen (Original UI)',
-    'Version': '1.1.3+adapter1~test3',
+    'Version': '1.1.3+adapter1~test4',
     'Architecture': 'iphoneos-arm64',
     'Maintainer': 'chuongnguyen89dn-ui',
     'Author': 'SenseTechLab (DuoDash); chuongnguyen89dn-ui (adapter)',
@@ -69,9 +52,10 @@ control = {
     'Conflicts': ', '.join(dict.fromkeys(conflicts)),
     'Replaces': ', '.join(dict.fromkeys(conflicts)),
     'Provides': fields.get('Provides', '') + ', com.sensetechlab.duodash (= 1.1.3)',
-    'Description': ('Original DuoDash 1.1.3 UI, app picker and split engine with '
-                    'fullscreen adapter. Test build; physical CarPlay behavior '
-                    'has not been verified. Replaces older fullscreen helper; no Airaw.'),
+    'Description': ('Recovery build restoring every original DuoDash source file. '
+                    'Experimental fullscreen/bar adapter removed after divider drag regression. '
+                    'Original UI, app picker, Settings and split payload preserved; '
+                    'device behavior requires verification.'),
 }
 
 with tempfile.TemporaryDirectory(prefix='duodash-package-') as temp:
@@ -97,11 +81,11 @@ with tempfile.TemporaryDirectory(prefix='duodash-package-') as temp:
 
 result = contents(output)
 assert result == payload, 'Payload bytes or permissions changed during packaging'
-assert all(result[name] == value for name, value in original.items() if name not in removed)
+assert result == original, 'Recovery must preserve the complete source payload'
 assert not any('Airaw' in name or 'AiraW' in name or 'CarPlaySplit' in name for name in result)
-assert not (removed & result.keys())
+assert not any('DuoDashFullscreenAdapter' in name for name in result)
 assert contents(output, True)['postinst'] == metadata['postinst']
 assert contents(output, True)['prerm'] == metadata['prerm']
-print(f'PASS: {len(original) - len(removed)} original DuoDash files preserved byte-for-byte; '
-      'fullscreen helper replaced; original Settings registration and bundle unchanged.')
+print(f'PASS: {len(original)} original DuoDash files preserved byte-for-byte; '
+      'experimental adapter absent; complete source payload restored.')
 print(f'SHA256 {hashlib.sha256(output.read_bytes()).hexdigest()}  {output}')

@@ -106,27 +106,16 @@ jobs:
           grep -q 'Airaw.dylib' /tmp/combined-contents.txt
           grep -q 'DuoDashAirawConflictProbe.dylib' /tmp/combined-contents.txt
 
-      - name: Checkout verified DuoDash fullscreen adapter
-        uses: actions/checkout@v4
-        with:
-          ref: ccadfe2eb8232879f3dc4d0279b0a716a719f238
-          path: adapter-source
-
-      - name: Build original DuoDash with fullscreen adapter for Sileo
+      - name: Restore complete original DuoDash payload for Sileo
         shell: bash
         run: |
           set -euo pipefail
-          xcrun clang -fobjc-arc -Wall -Wextra -framework Foundation \
-            adapter-source/duodash-fullscreen/tests/app-lifetime.m -o "$RUNNER_TEMP/app-lifetime"
-          "$RUNNER_TEMP/app-lifetime"
-          make -C adapter-source/duodash-fullscreen clean package FINALPACKAGE=1
           curl -fL --retry 3 \
             'https://raw.githubusercontent.com/chuongnguyen89dn-ui/DauDat-CarPlay/5f683ad16a2c4f2b37e333e891cfb8f7ba3e0d6b/DuoDash_1.1.3_Fullscreen427_iphoneos-arm64.deb' \
             -o "$RUNNER_TEMP/duodash-base.deb"
           python3 scripts/package-duodash-fullscreen.py \
             "$RUNNER_TEMP/duodash-base.deb" \
-            adapter-source/duodash-fullscreen/packages/com.chuong.duodash-fullscreen_0.1.0_iphoneos-arm64.deb \
-            packages/com.chuong.duodash-fullscreen-complete_1.1.3+adapter1~test3_iphoneos-arm64.deb
+            packages/com.chuong.duodash-fullscreen-complete_1.1.3+adapter1~test4_iphoneos-arm64.deb
           dpkg-deb -I packages/com.chuong.duodash-fullscreen-complete_*.deb
           dpkg-deb -c packages/com.chuong.duodash-fullscreen-complete_*.deb
 
