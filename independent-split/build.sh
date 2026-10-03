@@ -27,7 +27,6 @@ PREF="$STAGING/var/jb/Library/PreferenceBundles/CarPlaySplitPrefs.bundle"
 mkdir -p "$PREF" "$STAGING/var/jb/Library/PreferenceLoader/Preferences"
 "${CC[@]}" "${COMMON[@]}" -bundle -Wl,-undefined,dynamic_lookup preferences/Entry.m shared/CPSSettings.m -o "$PREF/CarPlaySplitPrefs"
 cp preferences/Info.plist "$PREF/"
-# PreferenceLoader resolves the same artwork at Settings row sizes, not app sizes.
 if [[ "$(uname -s)" == Darwin ]]; then
     sips -z 29 29 app/AppIcon60x60@2x.png --out "$PREF/Icon.png" >/dev/null
     sips -z 58 58 app/AppIcon60x60@2x.png --out "$PREF/Icon@2x.png" >/dev/null
@@ -60,3 +59,8 @@ VERSION="$(sed -n 's/^Version: //p' packaging/control)"
 OUTPUT="packages/com.chuong.carplaysplit_${VERSION}_iphoneos-arm64.deb"
 dpkg-deb --build --root-owner-group "$STAGING" "$OUTPUT"
 python3 verify_package.py "$OUTPUT"
+
+# Build Showcase into the same package directory so the existing workflow copies it into Sileo.
+if [[ "$(uname -s)" == Darwin ]]; then
+    bash ../showcase/build.sh "${RUNNER_TEMP:-/tmp}/showcarplay" "$PWD/packages"
+fi
